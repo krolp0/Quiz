@@ -3,21 +3,29 @@ const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
+const SUPABASE_ANON_KEY = "TWÓJ_ANON_KEY";
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /*************** 3) Funkcje pomocnicze ***************/
+/**
+ * Pobiera parametr z URL, np. ?token=abc&partner=1
+ */
 function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
 
+/**
+ * Generuje losowy token quizu
+ */
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
 
-// Zapis sesji do Supabase (upsert do tabeli 'quizzes')
+/**
+ * Zapisuje (upsert) obiekt sessionData do Supabase (tabela 'quizzes') pod kluczem 'token'
+ */
 async function saveSession(token, sessionData) {
   try {
     const { data, error } = await supabase
@@ -33,7 +41,9 @@ async function saveSession(token, sessionData) {
   }
 }
 
-// Odczyt sesji z Supabase
+/**
+ * Odczytuje sessionData z Supabase (tabela 'quizzes') na podstawie tokenu
+ */
 async function loadSession(token) {
   try {
     const { data, error } = await supabase
@@ -52,12 +62,17 @@ async function loadSession(token) {
   }
 }
 
-// Zastępujemy placeholdery {p1} i {p2} imionami
+/**
+ * Zastępuje w tekście placeholdery {p1} i {p2} imionami partnerów
+ */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /*************** 4) Dane Quizu ***************/
+/**
+ * Domyślna baza pytań – 5 kategorii, każda ma 10 pytań
+ */
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -93,7 +108,7 @@ const fullQuizData = [
     category: "Przygody i spontaniczność",
     questions: [
       { id: "przygody1", type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
+      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
       { id: "przygody3", type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
       { id: "przygody4", type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
       { id: "przygody5", type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
@@ -137,7 +152,9 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-// Funkcja tworząca quiz (Partner 1)
+/**
+ * Tworzenie quizu (Partner 1) – wypełnia imiona, generuje token
+ */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -166,12 +183,14 @@ async function showCreateQuiz() {
       answers: {}
     };
     await saveSession(token, sessionData);
-    // Przekieruj Partnera 1 do strony quizu
+    console.log("Utworzono quiz, token:", token);
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-// Funkcja wyboru kategorii – domyślnie tylko pierwsza kategoria zaznaczona
+/**
+ * Formularz wyboru kategorii (domyślnie zaznaczona tylko pierwsza kategoria)
+ */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -202,7 +221,9 @@ async function showCategorySelection(sessionData) {
   });
 }
 
-// Funkcja wyświetlająca link do quizu dla Partnera 2 oraz przycisk wyboru kategorii dla Partnera 1
+/**
+ * Wyświetlenie linku dla Partnera 2 i przycisku startowego dla Partnera 1
+ */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -226,8 +247,11 @@ async function showQuizLink(sessionData) {
   });
 }
 
-// Rozpoczęcie quizu – budowanie listy pytań i przejście do pytań
+/**
+ * Rozpoczęcie quizu (Partner 1 lub 2) – budowanie listy pytań i przejście do kolejnych
+ */
 async function startQuiz(sessionData, partner) {
+  console.log(`startQuiz dla partner=${partner}`);
   let quizQuestions = [];
   const categories = sessionData.selectedCategories || fullQuizData;
   categories.forEach(cat => {
@@ -243,9 +267,12 @@ async function startQuiz(sessionData, partner) {
   showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-// Wyświetlanie pojedynczego pytania
+/**
+ * Wyświetlanie pojedynczego pytania
+ */
 async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
+    console.log(`Partner ${partner} skończył odpowiadać.`);
     await saveSession(sessionData.token, sessionData);
     showQuizResults(sessionData);
     return;
@@ -256,6 +283,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   const p2 = sessionData.partner2Name;
   const questionText = formatText(current.text, p1, p2);
   let optionsHTML = "";
+
   if (current.type === "comparative") {
     optionsHTML = `
       <div class="tile" data-answer="1">${p1}</div>
@@ -288,19 +316,30 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-// Wyświetlanie wyników quizu z pollingiem
+/**
+ * Wyświetlanie wyników quizu z pollingiem (co 5s)
+ */
 async function showQuizResults(sessionData) {
+  // Załaduj najnowszą wersję danych z Supabase (mogła się zmienić)
   const latestSession = await loadSession(sessionData.token);
+  if (!latestSession) {
+    appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
+    return;
+  }
   const quizQuestions = latestSession.quizQuestions;
   const answers1 = latestSession.answers.partner1;
   const answers2 = latestSession.answers.partner2;
-  
+
+  // Sprawdzamy, czy obie strony odpowiedziały na wszystkie pytania
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
+    console.log("Jeszcze nie wszyscy skończyli. Polling...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
+    // Po 5 sekundach sprawdzamy ponownie
     setTimeout(() => showQuizResults(latestSession), 5000);
     return;
   }
-  
+
+  // Obliczamy zgodność
   let total = quizQuestions.length;
   let agreements = 0;
   let categoryStats = {};
@@ -317,6 +356,7 @@ async function showQuizResults(sessionData) {
       categoryStats[cat].agree++;
     }
   });
+
   const overallAgreement = ((agreements / total) * 100).toFixed(2);
   let categoryResults = "";
   for (let cat in categoryStats) {
@@ -340,25 +380,31 @@ async function showQuizResults(sessionData) {
 (async function main() {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
-  console.log("Token:", token, "Partner:", partner);
+
+  console.log("Token:", token, "Partner:", partner); // LOG
+
   if (!token) {
-    // Brak tokenu – Partner 1 tworzy nowy quiz
+    // Brak tokenu → Partner 1 tworzy nowy quiz
     showCreateQuiz();
   } else {
+    // Mamy token → próbujemy wczytać sesję z Supabase
     const sessionData = await loadSession(token);
-    console.log("Session Data:", sessionData);
+    console.log("Załadowane sessionData:", sessionData); // LOG
+
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
     if (partner === "1") {
-      // Dla Partnera 1 – jeśli kategorie nie zostały jeszcze wybrane, pokazujemy interfejs wyboru
+      // Partner 1 → jeśli nie wybrano kategorii, pokaż wybór
       if (!sessionData.selectedCategories) {
         showCategorySelection(sessionData);
       } else {
+        // Jeśli kategorie są wybrane, pokaż link do quizu
         showQuizLink(sessionData);
       }
     } else if (partner === "2") {
+      // Partner 2 → od razu uruchamiamy quiz
       console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
