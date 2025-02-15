@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz dla Zakochanych</title>
+  <style>
+    /* Prosty styl – dostosuj wg własnych potrzeb */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+      background: #f9f9f9;
+    }
+    #app {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Quiz dla Zakochanych</h1>
+  <div id="app">
+    <p>Ładowanie aplikacji...</p>
+  </div>
+
+  <!-- Używamy modułowego podejścia -->
+  <script type="module">
+    // Import potrzebnych funkcji z Firebase SDK (z CDN)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+
+    // Konfiguracja Firebase – wklej tutaj dane z Twojego projektu "Quiz"
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbaPN7PY2JxjbgVc91ZXZpUMkVA2N2OVI",
+      authDomain: "quiz-e666a.firebaseapp.com",
+      projectId: "quiz-e666a",
+      storageBucket: "quiz-e666a.firebasestorage.app",
+      messagingSenderId: "1081615611409",
+      appId: "1:1081615611409:web:096691e17e9d193540e3b0"
+    };
+
+    // Inicjalizacja Firebase
+    const app = initializeApp(firebaseConfig);
+    // Inicjalizacja Firestore
+    const db = getFirestore(app);
+
+    // Funkcja zapisu przykładowych danych quizu do Firestore
+    async function createQuiz() {
+      // Przykładowy token – w praktyce możesz go generować losowo
+      const token = "exampleQuizToken123";
+      // Przykładowe dane quizu
+      const sessionData = {
+        partner1Name: "Anna",
+        partner2Name: "Jan",
+        selectedCategories: ["Życie codzienne", "Romantyzm"],
+        quizQuestions: [],  // Później uzupełnisz listę pytań
+        answers: {}         // Początkowo puste – później dodasz odpowiedzi
+      };
+
+      try {
+        await setDoc(doc(db, "quizzes", token), sessionData);
+        console.log("Quiz zapisany w Firestore!");
+        document.getElementById("app").innerHTML = "<p>Quiz został zapisany w Firestore!</p>";
+      } catch (error) {
+        console.error("Błąd przy zapisie quizu: ", error);
+        document.getElementById("app").innerHTML = "<p>Błąd przy zapisie quizu.</p>";
+      }
+    }
+
+    // Funkcja odczytu quizu z Firestore
+    async function readQuiz() {
+      const token = "exampleQuizToken123";
+      try {
+        const quizDocRef = doc(db, "quizzes", token);
+        const quizDoc = await getDoc(quizDocRef);
+        if (quizDoc.exists()) {
+          console.log("Pobrane dane quizu:", quizDoc.data());
+          document.getElementById("app").innerHTML += "<p>Pobrano dane quizu z Firestore!</p>";
+        } else {
+          console.log("Quiz nie istnieje!");
+          document.getElementById("app").innerHTML += "<p>Quiz nie został znaleziony!</p>";
+        }
+      } catch (error) {
+        console.error("Błąd przy pobieraniu quizu:", error);
+        document.getElementById("app").innerHTML += "<p>Błąd przy pobieraniu quizu.</p>";
+      }
+    }
+
+    // Uruchamiamy funkcję zapisu i później odczyt – to tylko przykład
+    createQuiz();
+    // Odczytujemy dane po 3 sekundach (aby dać czas na zapis)
+    setTimeout(readQuiz, 3000);
+  </script>
+</body>
+</html>
