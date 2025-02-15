@@ -3,7 +3,7 @@ const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
+const SUPABASE_ANON_KEY = "TWOJ_ANON_KEY"; // <-- Wstaw swój klucz
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -12,7 +12,6 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
-
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
@@ -134,7 +133,7 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-// Funkcja tworząca quiz – Partner 1
+/** Partner 1 tworzy quiz */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -164,42 +163,12 @@ async function showCreateQuiz() {
     };
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
+    // Przekierowujemy Partnera 1 do linku z parametrem partner=1
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-// Funkcja wyboru kategorii – domyślnie tylko pierwsza kategoria zaznaczona
-async function showCategorySelection(sessionData) {
-  let categoryOptions = fullQuizData.map((cat, index) => {
-    return `<div>
-              <label>
-                <input type="checkbox" name="category" value="${cat.category}" ${index === 0 ? "checked" : ""}>
-                ${cat.category}
-              </label>
-            </div>`;
-  }).join("");
-  appDiv.innerHTML = `
-    <h2>Wybierz kategorie quizu</h2>
-    <form id="categoryForm">
-      ${categoryOptions}
-      <button type="submit">Zapisz wybór kategorii</button>
-    </form>
-  `;
-  document.getElementById('categoryForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const selected = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
-    if (selected.length === 0) {
-      alert("Wybierz przynajmniej jedną kategorię.");
-      return;
-    }
-    const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
-    sessionData.selectedCategories = selectedCategories;
-    await saveSession(sessionData.token, sessionData);
-    showQuizLink(sessionData);
-  });
-}
-
-// Funkcja wyświetlająca link dla Partnera 2 i przycisk wyboru kategorii dla Partnera 1
+/** Wyświetlenie linku dla Partnera 2 i przycisku "Rozpocznij quiz" dla Partnera 1 */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -209,8 +178,8 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr>
-    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz wybrać kategorie quizu.</p>
-    <button id="chooseCategoriesBtn">Wybierz kategorie</button>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz już rozpocząć quiz.</p>
+    <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
     const linkText = document.getElementById('partner2Link').innerText;
@@ -218,17 +187,18 @@ async function showQuizLink(sessionData) {
       alert("Link został skopiowany!");
     });
   });
-  document.getElementById('chooseCategoriesBtn').addEventListener('click', () => {
-    showCategorySelection(sessionData);
+  // Po kliknięciu Partner 1 startuje quiz
+  document.getElementById('startQuizBtn').addEventListener('click', () => {
+    startQuiz(sessionData, "1");
   });
 }
 
-// Rozpoczęcie quizu – budowanie listy pytań i przejście do kolejnych
+/** Rozpoczęcie quizu – Partner 1 lub 2 */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz dla partner=${partner}`);
   let quizQuestions = [];
-  const categories = sessionData.selectedCategories || fullQuizData;
-  categories.forEach(cat => {
+  // Po prostu bierzemy wszystkie kategorie – brak wyboru
+  fullQuizData.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
     });
@@ -241,7 +211,7 @@ async function startQuiz(sessionData, partner) {
   showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-// Wyświetlanie pojedynczego pytania z przyciskiem "Przejdź dalej"
+/** Wyświetlanie pojedynczego pytania z przyciskiem "Przejdź dalej" */
 async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} skończył odpowiadać.`);
@@ -254,6 +224,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   const p1 = sessionData.partner1Name;
   const p2 = sessionData.partner2Name;
   const questionText = formatText(current.text, p1, p2);
+  
   let optionsHTML = "";
   if (current.type === "comparative") {
     optionsHTML = `
@@ -280,10 +251,11 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   `;
   
   let selectedAnswer = null;
-  // Obsługa kliknięcia w opcję (kafelek)
+  
+  // Kliknięcie w kafelek
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', () => {
-      // Podświetlamy wybrany kafelek
+      // Podświetlamy wybraną odpowiedź
       document.querySelectorAll('.tile').forEach(t => t.style.border = "none");
       tile.style.border = "2px solid #d6336c";
       selectedAnswer = tile.getAttribute('data-answer');
@@ -292,13 +264,12 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
     });
   });
   
-  // Obsługa przycisku "Przejdź dalej"
+  // Kliknięcie w "Przejdź dalej"
   document.getElementById('nextBtn').addEventListener('click', async () => {
     if (!selectedAnswer) {
       alert("Wybierz odpowiedź, aby przejść dalej.");
       return;
     }
-    // Zapisujemy odpowiedź
     sessionData.answers["partner" + partner][current.id] = {
       category: current.category,
       type: current.type,
@@ -309,7 +280,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-// Wyświetlanie wyników quizu z pollingiem (co 5 sekund)
+/** Wyświetlanie wyników quizu z pollingiem */
 async function showQuizResults(sessionData) {
   const latestSession = await loadSession(sessionData.token);
   if (!latestSession) {
@@ -320,6 +291,7 @@ async function showQuizResults(sessionData) {
   const answers1 = latestSession.answers.partner1;
   const answers2 = latestSession.answers.partner2;
   
+  // Jeśli jedna osoba jeszcze nie skończyła, czekamy
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Jeszcze nie wszyscy skończyli. Polling...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
@@ -371,21 +343,23 @@ async function showQuizResults(sessionData) {
   console.log("Token:", token, "Partner:", partner);
   
   if (!token) {
+    // Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
+    // Odczytujemy sesję z Supabase
     const sessionData = await loadSession(token);
     console.log("Załadowane sessionData:", sessionData);
+    
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
+    
     if (partner === "1") {
-      if (!sessionData.selectedCategories) {
-        showCategorySelection(sessionData);
-      } else {
-        showQuizLink(sessionData);
-      }
+      // Partner 1 → wyświetlamy link i przycisk "Rozpocznij quiz"
+      showQuizLink(sessionData);
     } else if (partner === "2") {
+      // Partner 2 → od razu rozpoczyna quiz
       console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
