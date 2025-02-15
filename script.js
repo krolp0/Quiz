@@ -15,7 +15,6 @@ function getQueryParam(param) {
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
-
 // Zapis sesji do Supabase (upsert do tabeli 'quizzes')
 async function saveSession(token, sessionData) {
   try {
@@ -31,7 +30,6 @@ async function saveSession(token, sessionData) {
     console.error("Błąd przy zapisie sesji:", err);
   }
 }
-
 // Odczyt sesji z Supabase
 async function loadSession(token) {
   try {
@@ -50,7 +48,6 @@ async function loadSession(token) {
     return null;
   }
 }
-
 // Zastępujemy placeholdery {p1} i {p2} imionami
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
@@ -92,7 +89,7 @@ const fullQuizData = [
     category: "Przygody i spontaniczność",
     questions: [
       { id: "przygody1", type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
+      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
       { id: "przygody3", type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
       { id: "przygody4", type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
       { id: "przygody5", type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
@@ -136,7 +133,7 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-// Tworzenie quizu (Partner 1)
+// Funkcja tworząca quiz (Partner 1)
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -170,7 +167,7 @@ async function showCreateQuiz() {
   });
 }
 
-// Funkcja wyboru kategorii – domyślnie zaznaczona tylko pierwsza kategoria
+// Funkcja wyboru kategorii – domyślnie tylko pierwsza kategoria zaznaczona
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -194,7 +191,6 @@ async function showCategorySelection(sessionData) {
       alert("Wybierz przynajmniej jedną kategorię.");
       return;
     }
-    // Filtrujemy dane quizu na podstawie wybranych kategorii
     const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCategories;
     await saveSession(sessionData.token, sessionData);
@@ -202,7 +198,7 @@ async function showCategorySelection(sessionData) {
   });
 }
 
-// Funkcja wyświetlająca link do quizu dla Partnera 2 oraz przycisk startowy dla Partnera 1
+// Funkcja wyświetlająca link do quizu dla Partnera 2 oraz przycisk wyboru kategorii dla Partnera 1
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -212,7 +208,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr>
-    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz już wybrać kategorie quizu.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz wybrać kategorie quizu.</p>
     <button id="chooseCategoriesBtn">Wybierz kategorie</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -229,16 +225,13 @@ async function showQuizLink(sessionData) {
 // Rozpoczęcie quizu – budowanie listy pytań i przejście do pytań
 async function startQuiz(sessionData, partner) {
   let quizQuestions = [];
-  // Jeśli wybrano kategorie, używamy ich; w przeciwnym razie używamy pełnej listy
   const categories = sessionData.selectedCategories || fullQuizData;
   categories.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
     });
   });
-  // Zapisujemy kolejność pytań w sesji
   sessionData.quizQuestions = quizQuestions;
-  // Inicjalizujemy odpowiedzi dla danego partnera jako obiekt
   if (!sessionData.answers["partner" + partner]) {
     sessionData.answers["partner" + partner] = {};
   }
@@ -280,7 +273,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', async () => {
       const answer = tile.getAttribute('data-answer');
-      // Zapisujemy odpowiedź w obiekcie answers
       sessionData.answers["partner" + partner][current.id] = {
         category: current.category,
         type: current.type,
@@ -292,18 +284,15 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-// Funkcja wyświetlająca wyniki quizu z pollingiem – zarówno dla Partnera 1, jak i 2
+// Wyświetlanie wyników quizu z pollingiem
 async function showQuizResults(sessionData) {
-  // Pobierz najnowsze dane z Supabase
   const latestSession = await loadSession(sessionData.token);
   const quizQuestions = latestSession.quizQuestions;
   const answers1 = latestSession.answers.partner1;
   const answers2 = latestSession.answers.partner2;
   
-  // Jeśli odpowiedzi nie są kompletne, ustaw polling
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
-    // Polling co 5 sekund
     setTimeout(() => showQuizResults(latestSession), 5000);
     return;
   }
@@ -339,7 +328,6 @@ async function showQuizResults(sessionData) {
     <button id="resetBtn">Resetuj Quiz</button>
   `;
   document.getElementById('resetBtn').addEventListener('click', async () => {
-    // Po prostu przekierowujemy do strony głównej – możesz dodać usuwanie rekordu, jeśli chcesz.
     window.location.href = window.location.origin + window.location.pathname;
   });
 }
@@ -349,7 +337,7 @@ async function showQuizResults(sessionData) {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
   if (!token) {
-    // Brak tokenu – tworzymy nowy quiz (Partner 1)
+    // Brak tokenu – Partner 1 tworzy nowy quiz
     showCreateQuiz();
   } else {
     const sessionData = await loadSession(token);
@@ -358,14 +346,15 @@ async function showQuizResults(sessionData) {
       return;
     }
     if (partner === "1") {
-      // Dla Partnera 1 – jeśli kategorie jeszcze nie zostały wybrane, pokaż interfejs wyboru kategorii
+      // Dla Partnera 1 – wybór kategorii lub wyświetlenie linku, jeśli już wybrano
       if (!sessionData.selectedCategories) {
         showCategorySelection(sessionData);
       } else {
         showQuizLink(sessionData);
       }
     } else if (partner === "2") {
-      // Dla Partnera 2 – rozpoczynamy quiz
+      // Dla Partnera 2 – od razu uruchamiamy quiz
+      console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
       appDiv.innerHTML = "<p>Błąd: Nieprawidłowy parametr partner.</p>";
