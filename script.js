@@ -12,9 +12,11 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
+
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
+
 // Zapis sesji do Supabase (upsert do tabeli 'quizzes')
 async function saveSession(token, sessionData) {
   try {
@@ -30,6 +32,7 @@ async function saveSession(token, sessionData) {
     console.error("Błąd przy zapisie sesji:", err);
   }
 }
+
 // Odczyt sesji z Supabase
 async function loadSession(token) {
   try {
@@ -48,6 +51,7 @@ async function loadSession(token) {
     return null;
   }
 }
+
 // Zastępujemy placeholdery {p1} i {p2} imionami
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
@@ -89,7 +93,7 @@ const fullQuizData = [
     category: "Przygody i spontaniczność",
     questions: [
       { id: "przygody1", type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
+      { id: "przygody2", type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
       { id: "przygody3", type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
       { id: "przygody4", type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
       { id: "przygody5", type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
@@ -336,24 +340,25 @@ async function showQuizResults(sessionData) {
 (async function main() {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
+  console.log("Token:", token, "Partner:", partner);
   if (!token) {
     // Brak tokenu – Partner 1 tworzy nowy quiz
     showCreateQuiz();
   } else {
     const sessionData = await loadSession(token);
+    console.log("Session Data:", sessionData);
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
     if (partner === "1") {
-      // Dla Partnera 1 – wybór kategorii lub wyświetlenie linku, jeśli już wybrano
+      // Dla Partnera 1 – jeśli kategorie nie zostały jeszcze wybrane, pokazujemy interfejs wyboru
       if (!sessionData.selectedCategories) {
         showCategorySelection(sessionData);
       } else {
         showQuizLink(sessionData);
       }
     } else if (partner === "2") {
-      // Dla Partnera 2 – od razu uruchamiamy quiz
       console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
