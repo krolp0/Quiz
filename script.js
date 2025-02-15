@@ -3,7 +3,7 @@ const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "TWOJ_ANON_KEY"; // <-- Wstaw swój klucz
+const SUPABASE_ANON_KEY = "TWOJ_ANON_KEY"; // <-- Wklej swój klucz
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -12,10 +12,12 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
+
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
 
+/** Zapis/aktualizacja sesji w tabeli 'quizzes' */
 async function saveSession(token, sessionData) {
   try {
     const { data, error } = await supabase
@@ -31,6 +33,7 @@ async function saveSession(token, sessionData) {
   }
 }
 
+/** Odczyt sesji z tabeli 'quizzes' */
 async function loadSession(token) {
   try {
     const { data, error } = await supabase
@@ -49,6 +52,7 @@ async function loadSession(token) {
   }
 }
 
+/** Zastępowanie placeholderów {p1} i {p2} w tekście */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
@@ -133,7 +137,8 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-/** Partner 1 tworzy quiz */
+
+/** Partner 1 tworzy quiz – wpisuje imiona, generuje token */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -163,22 +168,21 @@ async function showCreateQuiz() {
     };
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowujemy Partnera 1 do linku z parametrem partner=1
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Wyświetlenie linku dla Partnera 2 i przycisku "Rozpocznij quiz" dla Partnera 1 */
+/** Partner 1 widzi link dla Partnera 2 i przycisk "Rozpocznij quiz" */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
   appDiv.innerHTML = `
-    <h2>Quiz utworzony!</h2>
+    <h2>Quiz stworzony!</h2>
     <p>Wyślij ten link Partnerowi 2:</p>
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr>
-    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz już rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -187,17 +191,16 @@ async function showQuizLink(sessionData) {
       alert("Link został skopiowany!");
     });
   });
-  // Po kliknięciu Partner 1 startuje quiz
   document.getElementById('startQuizBtn').addEventListener('click', () => {
     startQuiz(sessionData, "1");
   });
 }
 
-/** Rozpoczęcie quizu – Partner 1 lub 2 */
+/** Rozpoczęcie quizu – ładujemy wszystkie kategorie */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz dla partner=${partner}`);
   let quizQuestions = [];
-  // Po prostu bierzemy wszystkie kategorie – brak wyboru
+  // Używamy wszystkich kategorii – brak wyboru
   fullQuizData.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
@@ -227,18 +230,20 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   
   let optionsHTML = "";
   if (current.type === "comparative") {
+    // Partner 1 = "1", Partner 2 = "2"
     optionsHTML = `
       <div class="tile" data-answer="1">${p1}</div>
       <div class="tile" data-answer="2">${p2}</div>
     `;
   } else if (current.type === "yesno") {
+    // "tak" / "nie"
     optionsHTML = `
       <div class="tile" data-answer="tak">Tak</div>
       <div class="tile" data-answer="nie">Nie</div>
     `;
   }
   
-  // Wyświetlamy pytanie, opcje oraz ukryty przycisk "Przejdź dalej"
+  // Wyświetlamy pytanie, odpowiedzi oraz ukryty przycisk "Przejdź dalej"
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
@@ -251,11 +256,10 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   `;
   
   let selectedAnswer = null;
-  
   // Kliknięcie w kafelek
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', () => {
-      // Podświetlamy wybraną odpowiedź
+      // Podświetlamy wybrany kafelek
       document.querySelectorAll('.tile').forEach(t => t.style.border = "none");
       tile.style.border = "2px solid #d6336c";
       selectedAnswer = tile.getAttribute('data-answer');
@@ -280,8 +284,9 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-/** Wyświetlanie wyników quizu z pollingiem */
+/** Wyświetlanie wyników – ogólny procent zgodności i szczegółowe odpowiedzi */
 async function showQuizResults(sessionData) {
+  // Pobierz najnowsze dane (np. Partner 2 mógł jeszcze coś zapisać)
   const latestSession = await loadSession(sessionData.token);
   if (!latestSession) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
@@ -290,8 +295,10 @@ async function showQuizResults(sessionData) {
   const quizQuestions = latestSession.quizQuestions;
   const answers1 = latestSession.answers.partner1;
   const answers2 = latestSession.answers.partner2;
+  const p1 = latestSession.partner1Name;
+  const p2 = latestSession.partner2Name;
   
-  // Jeśli jedna osoba jeszcze nie skończyła, czekamy
+  // Jeśli jeden z partnerów jeszcze nie skończył
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Jeszcze nie wszyscy skończyli. Polling...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
@@ -299,36 +306,42 @@ async function showQuizResults(sessionData) {
     return;
   }
   
+  // Obliczamy procent zgodności
   let total = quizQuestions.length;
   let agreements = 0;
-  let categoryStats = {};
   quizQuestions.forEach(q => {
-    const a1 = answers1[q.id] ? answers1[q.id].answer : null;
-    const a2 = answers2[q.id] ? answers2[q.id].answer : null;
-    const cat = q.category;
-    if (!categoryStats[cat]) {
-      categoryStats[cat] = { total: 0, agree: 0 };
-    }
-    categoryStats[cat].total++;
+    const a1 = answers1[q.id]?.answer || null;
+    const a2 = answers2[q.id]?.answer || null;
     if (a1 === a2) {
       agreements++;
-      categoryStats[cat].agree++;
     }
   });
-  
   const overallAgreement = ((agreements / total) * 100).toFixed(2);
-  let categoryResults = "";
-  for (let cat in categoryStats) {
-    const percent = ((categoryStats[cat].agree / categoryStats[cat].total) * 100).toFixed(2);
-    categoryResults += `<li><strong>${cat}:</strong> ${percent}% zgodności</li>`;
-  }
-  
+
+  // Szczegółowa lista pytań i odpowiedzi
+  let detailsHTML = quizQuestions.map(q => {
+    const a1 = answers1[q.id]?.answer || null;
+    const a2 = answers2[q.id]?.answer || null;
+
+    // Zamieniamy "1" na p1, "2" na p2, a "tak"/"nie" zostawiamy
+    const answer1 = (a1 === "1") ? p1 : (a1 === "2") ? p2 : a1;
+    const answer2 = (a2 === "1") ? p1 : (a2 === "2") ? p2 : a2;
+
+    return `
+      <li>
+        <strong>${q.category} – ${q.text}</strong><br />
+        Partner 1: <em>${answer1}</em><br />
+        Partner 2: <em>${answer2}</em>
+      </li>
+    `;
+  }).join("");
+
   appDiv.innerHTML = `
     <h2>Wyniki Quizu</h2>
-    <p><strong>${latestSession.partner1Name}</strong> vs <strong>${latestSession.partner2Name}</strong></p>
+    <p><strong>${p1}</strong> vs <strong>${p2}</strong></p>
     <p>Ogólna zgodność: <strong>${overallAgreement}%</strong></p>
-    <h3>Szczegółowe wyniki według kategorii:</h3>
-    <ul>${categoryResults}</ul>
+    <h3>Szczegółowe odpowiedzi:</h3>
+    <ul>${detailsHTML}</ul>
     <button id="resetBtn">Resetuj Quiz</button>
   `;
   document.getElementById('resetBtn').addEventListener('click', async () => {
@@ -341,25 +354,25 @@ async function showQuizResults(sessionData) {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
   console.log("Token:", token, "Partner:", partner);
-  
+
   if (!token) {
     // Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
-    // Odczytujemy sesję z Supabase
+    // Wczytujemy sesję z Supabase
     const sessionData = await loadSession(token);
     console.log("Załadowane sessionData:", sessionData);
-    
+
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
-    
+
     if (partner === "1") {
-      // Partner 1 → wyświetlamy link i przycisk "Rozpocznij quiz"
+      // Partner 1 widzi link i przycisk "Rozpocznij quiz"
       showQuizLink(sessionData);
     } else if (partner === "2") {
-      // Partner 2 → od razu rozpoczyna quiz
+      // Partner 2 – od razu startujemy quiz
       console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
