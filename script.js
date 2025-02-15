@@ -3,29 +3,20 @@ const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "TWÓJ_ANON_KEY";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /*************** 3) Funkcje pomocnicze ***************/
-/**
- * Pobiera parametr z URL, np. ?token=abc&partner=1
- */
 function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
 
-/**
- * Generuje losowy token quizu
- */
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
 
-/**
- * Zapisuje (upsert) obiekt sessionData do Supabase (tabela 'quizzes') pod kluczem 'token'
- */
 async function saveSession(token, sessionData) {
   try {
     const { data, error } = await supabase
@@ -41,9 +32,6 @@ async function saveSession(token, sessionData) {
   }
 }
 
-/**
- * Odczytuje sessionData z Supabase (tabela 'quizzes') na podstawie tokenu
- */
 async function loadSession(token) {
   try {
     const { data, error } = await supabase
@@ -62,17 +50,11 @@ async function loadSession(token) {
   }
 }
 
-/**
- * Zastępuje w tekście placeholdery {p1} i {p2} imionami partnerów
- */
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /*************** 4) Dane Quizu ***************/
-/**
- * Domyślna baza pytań – 5 kategorii, każda ma 10 pytań
- */
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -152,9 +134,7 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-/**
- * Tworzenie quizu (Partner 1) – wypełnia imiona, generuje token
- */
+// Funkcja tworząca quiz – Partner 1
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -188,9 +168,7 @@ async function showCreateQuiz() {
   });
 }
 
-/**
- * Formularz wyboru kategorii (domyślnie zaznaczona tylko pierwsza kategoria)
- */
+// Funkcja wyboru kategorii – domyślnie tylko pierwsza kategoria zaznaczona
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -221,9 +199,7 @@ async function showCategorySelection(sessionData) {
   });
 }
 
-/**
- * Wyświetlenie linku dla Partnera 2 i przycisku startowego dla Partnera 1
- */
+// Funkcja wyświetlająca link dla Partnera 2 i przycisk wyboru kategorii dla Partnera 1
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -247,9 +223,7 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/**
- * Rozpoczęcie quizu (Partner 1 lub 2) – budowanie listy pytań i przejście do kolejnych
- */
+// Rozpoczęcie quizu – budowanie listy pytań i przejście do kolejnych
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz dla partner=${partner}`);
   let quizQuestions = [];
@@ -267,9 +241,7 @@ async function startQuiz(sessionData, partner) {
   showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-/**
- * Wyświetlanie pojedynczego pytania
- */
+// Wyświetlanie pojedynczego pytania z przyciskiem "Przejdź dalej"
 async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} skończył odpowiadać.`);
@@ -283,7 +255,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   const p2 = sessionData.partner2Name;
   const questionText = formatText(current.text, p1, p2);
   let optionsHTML = "";
-
   if (current.type === "comparative") {
     optionsHTML = `
       <div class="tile" data-answer="1">${p1}</div>
@@ -295,32 +266,51 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
       <div class="tile" data-answer="nie">Nie</div>
     `;
   }
+  
+  // Wyświetlamy pytanie, opcje oraz ukryty przycisk "Przejdź dalej"
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
     <div class="tile-container">
       ${optionsHTML}
     </div>
+    <div id="nextContainer" style="display: none; text-align: center; margin-top: 20px;">
+      <button id="nextBtn">Przejdź dalej</button>
+    </div>
   `;
+  
+  let selectedAnswer = null;
+  // Obsługa kliknięcia w opcję (kafelek)
   document.querySelectorAll('.tile').forEach(tile => {
-    tile.addEventListener('click', async () => {
-      const answer = tile.getAttribute('data-answer');
-      sessionData.answers["partner" + partner][current.id] = {
-        category: current.category,
-        type: current.type,
-        answer: answer
-      };
-      await saveSession(sessionData.token, sessionData);
-      showQuestion(index + 1, quizQuestions, sessionData, partner);
+    tile.addEventListener('click', () => {
+      // Podświetlamy wybrany kafelek
+      document.querySelectorAll('.tile').forEach(t => t.style.border = "none");
+      tile.style.border = "2px solid #d6336c";
+      selectedAnswer = tile.getAttribute('data-answer');
+      // Pokazujemy przycisk "Przejdź dalej"
+      document.getElementById('nextContainer').style.display = "block";
     });
+  });
+  
+  // Obsługa przycisku "Przejdź dalej"
+  document.getElementById('nextBtn').addEventListener('click', async () => {
+    if (!selectedAnswer) {
+      alert("Wybierz odpowiedź, aby przejść dalej.");
+      return;
+    }
+    // Zapisujemy odpowiedź
+    sessionData.answers["partner" + partner][current.id] = {
+      category: current.category,
+      type: current.type,
+      answer: selectedAnswer
+    };
+    await saveSession(sessionData.token, sessionData);
+    showQuestion(index + 1, quizQuestions, sessionData, partner);
   });
 }
 
-/**
- * Wyświetlanie wyników quizu z pollingiem (co 5s)
- */
+// Wyświetlanie wyników quizu z pollingiem (co 5 sekund)
 async function showQuizResults(sessionData) {
-  // Załaduj najnowszą wersję danych z Supabase (mogła się zmienić)
   const latestSession = await loadSession(sessionData.token);
   if (!latestSession) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
@@ -329,17 +319,14 @@ async function showQuizResults(sessionData) {
   const quizQuestions = latestSession.quizQuestions;
   const answers1 = latestSession.answers.partner1;
   const answers2 = latestSession.answers.partner2;
-
-  // Sprawdzamy, czy obie strony odpowiedziały na wszystkie pytania
+  
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Jeszcze nie wszyscy skończyli. Polling...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
-    // Po 5 sekundach sprawdzamy ponownie
     setTimeout(() => showQuizResults(latestSession), 5000);
     return;
   }
-
-  // Obliczamy zgodność
+  
   let total = quizQuestions.length;
   let agreements = 0;
   let categoryStats = {};
@@ -356,13 +343,14 @@ async function showQuizResults(sessionData) {
       categoryStats[cat].agree++;
     }
   });
-
+  
   const overallAgreement = ((agreements / total) * 100).toFixed(2);
   let categoryResults = "";
   for (let cat in categoryStats) {
     const percent = ((categoryStats[cat].agree / categoryStats[cat].total) * 100).toFixed(2);
     categoryResults += `<li><strong>${cat}:</strong> ${percent}% zgodności</li>`;
   }
+  
   appDiv.innerHTML = `
     <h2>Wyniki Quizu</h2>
     <p><strong>${latestSession.partner1Name}</strong> vs <strong>${latestSession.partner2Name}</strong></p>
@@ -380,31 +368,24 @@ async function showQuizResults(sessionData) {
 (async function main() {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
-
-  console.log("Token:", token, "Partner:", partner); // LOG
-
+  console.log("Token:", token, "Partner:", partner);
+  
   if (!token) {
-    // Brak tokenu → Partner 1 tworzy nowy quiz
     showCreateQuiz();
   } else {
-    // Mamy token → próbujemy wczytać sesję z Supabase
     const sessionData = await loadSession(token);
-    console.log("Załadowane sessionData:", sessionData); // LOG
-
+    console.log("Załadowane sessionData:", sessionData);
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
     if (partner === "1") {
-      // Partner 1 → jeśli nie wybrano kategorii, pokaż wybór
       if (!sessionData.selectedCategories) {
         showCategorySelection(sessionData);
       } else {
-        // Jeśli kategorie są wybrane, pokaż link do quizu
         showQuizLink(sessionData);
       }
     } else if (partner === "2") {
-      // Partner 2 → od razu uruchamiamy quiz
       console.log("Partner 2 wykryty – uruchamiam quiz.");
       startQuiz(sessionData, "2");
     } else {
