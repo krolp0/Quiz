@@ -9,44 +9,27 @@ body {
   max-width: 800px;
   margin: 20px auto;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255,255,255,0.95);
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 h1, h2, h3 {
-  font-family: 'Dancing Script', cursive;
   text-align: center;
   color: #d6336c;
 }
 
-p, label {
-  color: #333;
-  line-height: 1.6;
+/* Styl pytań – większa czcionka */
+.question-text {
+  font-size: 24px;
+  margin-bottom: 10px;
 }
 
-button {
-  background: #d6336c;
-  border: none;
-  padding: 10px 20px;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 5px;
+.category-label {
   font-size: 16px;
-  margin-top: 15px;
-}
-
-button:hover {
-  background: #b02a47;
-}
-
-input[type="text"] {
-  padding: 8px;
-  margin-top: 5px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
-  width: 100%;
+  color: #555;
+  text-align: center;
+  margin-bottom: 5px;
 }
 
 .tile-container {
@@ -64,6 +47,7 @@ input[type="text"] {
   flex: 1;
   margin: 0 10px;
   font-weight: bold;
+  font-size: 18px;
 }
 
 .tile:hover {
@@ -86,15 +70,17 @@ input[type="text"] {
   font-weight: bold;
 }
 
-@media (max-width: 600px) {
-  .container {
-    margin: 10px;
-    padding: 15px;
-  }
-  button {
-    width: 100%;
-  }
-  .tile {
-    margin: 5px;
-  }
+button {
+  background: #d6336c;
+  border: none;
+  padding: 10px 20px;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  margin-top: 15px;
+}
+
+button:hover {
+  background: #b02a47;
 }
