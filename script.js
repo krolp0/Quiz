@@ -2,8 +2,9 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
+// Uzupełnij swoim URL i kluczem anon
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -15,6 +16,11 @@ function getQueryParam(param) {
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
+
+/**
+ * Pobiera pełny wiersz (session_data, partner1_answers, partner2_answers)
+ * z tabeli quizzes dla danego tokenu.
+ */
 async function loadQuizRow(token) {
   try {
     const { data, error } = await supabase
@@ -26,16 +32,25 @@ async function loadQuizRow(token) {
       console.error("Błąd loadQuizRow:", error);
       return null;
     }
-    return data;
+    return data; // { session_data, partner1_answers, partner2_answers }
   } catch (err) {
     console.error("Błąd loadQuizRow:", err);
     return null;
   }
 }
+
+/**
+ * Upsertuje CAŁY wiersz (token, session_data, partner1_answers, partner2_answers).
+ * Zawsze przekazujemy session_data (niepuste), żeby nie naruszyć NOT NULL.
+ */
 async function upsertQuizRow(token, sessionData, partner1Answers, partner2Answers) {
+  // Upewnij się, że session_data nie jest null – wstaw pusty obiekt jeśli brak
   const finalSessionData = sessionData || {};
+
+  // Jeśli kolumny partnerX_answers są nieustawione, wstaw pusty obiekt, żeby nie było undefined
   const finalPartner1 = partner1Answers || {};
   const finalPartner2 = partner2Answers || {};
+
   try {
     const { data, error } = await supabase
       .from('quizzes')
@@ -54,14 +69,29 @@ async function upsertQuizRow(token, sessionData, partner1Answers, partner2Answer
     console.error("Błąd upsertQuizRow:", err);
   }
 }
+
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /*************** 4) Dane Quizu ***************/
-// UWAGA: Tu NIE ma definicji fullQuizData – jest w quizDATA.js
+const fullQuizData = [
+  {
+    category: "Życie codzienne",
+    questions: [
+      { id: "codzienne1",  type: "comparative", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
+      // ... i tak dalej (romantyzm, przygody, itp.)
+    ]
+  }
+  // ...
+];
 
 /*************** 5) Logika quizu ***************/
+
+/**
+ * Tworzy nowy quiz: wstawiamy wiersz z tokenem, session_data = { partner1Name, partner2Name, ... },
+ * partner1_answers i partner2_answers ustawiamy jako pusty obiekt {}.
+ */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -83,20 +113,25 @@ async function showCreateQuiz() {
       return;
     }
     const token = generateToken();
+    // session_data (metadane)
     const sessionData = {
       partner1Name: p1,
       partner2Name: p2,
       selectedCategories: [],
       quizQuestions: []
     };
+    // Tworzymy nowy wiersz z pustymi odpowiedziami
     await upsertQuizRow(token, sessionData, {}, {});
     console.log("Utworzono quiz, token:", token);
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
+/**
+ * Wybór kategorii przez Partnera 1 – aktualizujemy session_data w bazie,
+ * ale partner1_answers i partner2_answers pozostają nienaruszone.
+ */
 async function showCategorySelection(token, sessionData) {
-  // Używamy globalnej zmiennej fullQuizData z quizDATA.js
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
               <label>
@@ -121,15 +156,15 @@ async function showCategorySelection(token, sessionData) {
     }
     const selectedCats = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCats;
-    // Nie nadpisz partner1/partner2 answers
-    const existingRow = await loadQuizRow(token);
-    const p1Answers = existingRow?.partner1_answers || {};
-    const p2Answers = existingRow?.partner2_answers || {};
-    await upsertQuizRow(token, sessionData, p1Answers, p2Answers);
+    // Zapisz z powrotem w session_data
+    await upsertQuizRow(token, sessionData, sessionData.partner1_answers || {}, sessionData.partner2_answers || {});
     showQuizLink(token, sessionData);
   });
 }
 
+/**
+ * Strona linku dla Partnera 2 i przycisk startu dla Partnera 1
+ */
 function showQuizLink(token, sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${token}&partner=2`;
@@ -153,6 +188,9 @@ function showQuizLink(token, sessionData) {
   });
 }
 
+/**
+ * Rozpoczęcie quizu – budujemy listę pytań z wybranych kategorii, zapisujemy w session_data.
+ */
 async function startQuiz(token, sessionData, partner) {
   let quizQuestions = [];
   const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
@@ -164,17 +202,23 @@ async function startQuiz(token, sessionData, partner) {
     });
   });
   sessionData.quizQuestions = quizQuestions;
+  // Zapisz session_data
+  // Do upsertu pobierzmy aktualne partner1_answers i partner2_answers, by nie nadpisać
   const existingRow = await loadQuizRow(token);
   const existingSessionData = existingRow?.session_data || {};
   const p1Answers = existingRow?.partner1_answers || {};
   const p2Answers = existingRow?.partner2_answers || {};
+
+  // Scal session_data (by zachować partner1Name, partner2Name)
   const newSessionData = { ...existingSessionData, ...sessionData };
   await upsertQuizRow(token, newSessionData, p1Answers, p2Answers);
 
+  // Odpowiedzi lokalne
   let localAnswers = {};
   showQuestion(0, quizQuestions, token, newSessionData, partner, localAnswers);
 }
 
+/** Wyświetlanie pojedynczego pytania */
 function showQuestion(index, quizQuestions, token, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} ukończył quiz. Zapisujemy odpowiedzi w partner${partner}_answers.`);
@@ -199,6 +243,7 @@ function showQuestion(index, quizQuestions, token, sessionData, partner, localAn
       <div class="tile" data-answer="nie">Nie</div>
     `;
   }
+
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
@@ -221,26 +266,37 @@ function showQuestion(index, quizQuestions, token, sessionData, partner, localAn
   });
 }
 
+/**
+ * Po ukończeniu quizu przez danego partnera – zapisujemy odpowiedzi w partnerX_answers,
+ * ale jednocześnie zachowujemy session_data i drugą kolumnę z odpowiedziami drugiego partnera.
+ */
 async function saveFinalAnswers(token, sessionData, partner, localAnswers) {
+  // Pobierz bieżący stan, by wypełnić resztę kolumn
   const row = await loadQuizRow(token);
   if (!row) {
     console.error("Nie znaleziono wiersza, nie można zapisać odpowiedzi partnera.");
     return;
   }
+  // Metadane
   const finalSessionData = row.session_data || {};
+  // Odpowiedzi drugiego partnera
   const p1Answers = row.partner1_answers || {};
   const p2Answers = row.partner2_answers || {};
 
   if (partner === "1") {
+    // Zaktualizuj partner1_answers
     const merged1 = { ...p1Answers, ...localAnswers };
     await upsertQuizRow(token, finalSessionData, merged1, p2Answers);
   } else {
+    // Zaktualizuj partner2_answers
     const merged2 = { ...p2Answers, ...localAnswers };
     await upsertQuizRow(token, finalSessionData, p1Answers, merged2);
   }
+  // Po zapisaniu – sprawdź wyniki
   showQuizResults(token);
 }
 
+/** Wyświetlanie wyników – czekamy, aż oboje partnerzy zakończą */
 async function showQuizResults(token) {
   const row = await loadQuizRow(token);
   if (!row) {
@@ -254,6 +310,7 @@ async function showQuizResults(token) {
   const p2 = sessionData.partner2Name || "Partner2";
   const quizQuestions = sessionData.quizQuestions || [];
 
+  // Sprawdź, czy oboje mają komplet
   if (Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Oczekiwanie na zakończenie quizu przez oboje partnerów...");
@@ -261,6 +318,7 @@ async function showQuizResults(token) {
     setTimeout(() => showQuizResults(token), 1000);
     return;
   }
+  // Oblicz zgodność
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
@@ -311,6 +369,7 @@ async function showQuizResults(token) {
     const sessionData = row.session_data || {};
 
     if (partner === "1") {
+      // Partner 1 – jeśli nie wybrał kategorii, pokaż wybór
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(token, sessionData);
       } else {
@@ -318,6 +377,7 @@ async function showQuizResults(token) {
       }
     } else if (partner === "2") {
       console.log("Partner 2 wykryty – uruchamiam quiz.");
+      // Sprawdź, czy quizQuestions istnieje
       if (!sessionData.quizQuestions || sessionData.quizQuestions.length === 0) {
         appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu.</p>`;
         return;
