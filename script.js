@@ -2,8 +2,10 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
+// Wstaw swoje dane (URL i klucz anon) – upewnij się, że to ANON KEY
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
+
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -17,23 +19,27 @@ function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
 
+// Zapis/aktualizacja sesji w tabeli 'quizzes'
 async function saveSession(token, sessionData) {
   try {
+    console.log("saveSession() – zapisuję sesję w Supabase...");
     const { data, error } = await supabase
       .from('quizzes')
       .upsert({ token, session_data: sessionData });
     if (error) {
       console.error("Błąd przy zapisie do Supabase:", error);
     } else {
-      console.log("Sesja zapisana:", data);
+      console.log("Sesja zapisana w Supabase:", data);
     }
   } catch (err) {
     console.error("Błąd przy zapisie sesji:", err);
   }
 }
 
+// Odczyt sesji z tabeli 'quizzes'
 async function loadSession(token) {
   try {
+    console.log("loadSession() – wczytuję sesję z Supabase, token:", token);
     const { data, error } = await supabase
       .from('quizzes')
       .select('session_data')
@@ -55,6 +61,7 @@ function formatText(text, p1, p2) {
 }
 
 /*************** 4) Dane Quizu ***************/
+// Przykładowo 2 kategorie – wstaw docelowo wszystkie
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -64,29 +71,32 @@ const fullQuizData = [
       { id: "codzienne3", type: "comparative", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
       { id: "codzienne4", type: "comparative", text: "Kto częściej podejmuje inicjatywę w codziennych zadaniach? {p1} vs {p2}" },
       { id: "codzienne5", type: "comparative", text: "Kto lepiej radzi sobie z obowiązkami domowymi? {p1} vs {p2}" },
-      { id: "codzienne6", type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
-      { id: "codzienne7", type: "yesno",       text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
-      { id: "codzienne8", type: "yesno",       text: "Czy {p2} częściej dba o detale dnia codziennego?" },
-      { id: "codzienne9", type: "yesno",       text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
-      { id: "codzienne10", type: "yesno",      text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
+      { id: "codzienne6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
+      { id: "codzienne7", type: "yesno", text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
+      { id: "codzienne8", type: "yesno", text: "Czy {p2} częściej dba o detale dnia codziennego?" },
+      { id: "codzienne9", type: "yesno", text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
+      { id: "codzienne10", type: "yesno", text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
     ]
   },
-  // Pozostałe kategorie analogicznie…
-  // Dla uproszczenia zakładamy, że pełna baza pytań zawiera wszystkie kategorie.
+  {
+    category: "Romantyzm",
+    questions: [
+      { id: "romantyzm1", type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
+      { id: "romantyzm2", type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
+      { id: "romantyzm3", type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
+      { id: "romantyzm4", type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
+      { id: "romantyzm5", type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
+      { id: "romantyzm6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
+      { id: "romantyzm7", type: "yesno", text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
+      { id: "romantyzm8", type: "yesno", text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
+      { id: "romantyzm9", type: "yesno", text: "Czy {p1} częściej myśli o niespodziankach?" },
+      { id: "romantyzm10", type: "yesno", text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
+    ]
+  }
+  // Dodaj kolejne kategorie wg potrzeb
 ];
 
 /*************** 5) Logika quizu ***************/
-
-/* 
-  W tej wersji Partner 1 najpierw tworzy quiz, potem wybiera kategorie.
-  Po wyborze kategorii, zanim zostanie wysłany link dla Partner 2, zapisujemy w sesji:
-  - selectedCategories,
-  - currentQuestionIndex (inicjalnie 0).
-  
-  Następnie quiz przebiega synchronicznie – oboje odpowiadają na pytanie o indeksie currentQuestionIndex.
-  Dopiero gdy oboje odpowiedzą, currentQuestionIndex zwiększa się.
-*/
-
 /** Partner 1 tworzy quiz – wpisuje imiona */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
@@ -113,17 +123,17 @@ async function showCreateQuiz() {
       token,
       partner1Name: p1,
       partner2Name: p2,
-      answers: {},
-      currentQuestionIndex: 0 // Ustalamy indeks pierwszego pytania
+      answers: {}
     };
+    // Zapisujemy w bazie
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowujemy Partnera 1 do ekranu wyboru kategorii
+    // Przekierowanie Partnera 1 do ekranu wyboru kategorii
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Ekran wyboru kategorii – Partner 1 wybiera kategorie przed wysłaniem linku do Partnera 2 */
+/** Ekran wyboru kategorii – Partner 1 musi wybrać kategorie przed wysłaniem linku do Partnera 2 */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     // Domyślnie zaznaczona tylko pierwsza kategoria
@@ -150,13 +160,13 @@ async function showCategorySelection(sessionData) {
     }
     const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCategories;
+    // Zapisujemy
     await saveSession(sessionData.token, sessionData);
-    // Po zatwierdzeniu wyboru kategorii, przechodzimy do ekranu z linkiem dla Partnera 2 i przyciskiem "Rozpocznij quiz"
     showQuizLink(sessionData);
   });
 }
 
-/** Ekran dla Partnera 1 – wyświetla link dla Partnera 2 oraz przycisk "Rozpocznij quiz" */
+/** Ekran dla Partnera 1 – wyświetla link dla Partnera 2 i przycisk "Rozpocznij quiz" */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -166,7 +176,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
-    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij poniżej, aby rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij przycisk, aby rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -180,52 +190,53 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – budujemy listę pytań zgodnie z wybranymi kategoriami */
+/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii */
 async function startQuiz(sessionData, partner) {
-  console.log(`startQuiz dla partner=${partner}`);
+  console.log(`startQuiz() – Partner ${partner}`);
   let quizQuestions = [];
-  const categories = (sessionData.selectedCategories && sessionData.selectedCategories.length > 0)
+  // Jeśli partner 1 wybrał kategorie, używamy ich; w przeciwnym razie bierzemy wszystkie
+  const categories = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
     ? sessionData.selectedCategories
     : fullQuizData;
+
   categories.forEach(cat => {
     cat.questions.forEach(q => {
-      // Upewnij się, że każde pytanie ma przypisaną kategorię
       quizQuestions.push({ ...q, category: cat.category });
     });
   });
+
   sessionData.quizQuestions = quizQuestions;
-  // Jeśli jeszcze nie ma odpowiedzi dla danego partnera, inicjuj pusty obiekt
+  // Inicjalizujemy obiekt odpowiedzi, jeśli nie istnieje
   if (!sessionData.answers["partner" + partner]) {
     sessionData.answers["partner" + partner] = {};
   }
   await saveSession(sessionData.token, sessionData);
-  // Rozpoczynamy quiz od aktualnego indeksu (synchronizowanego dla obu partnerów)
-  showSynchronizedQuestion(sessionData, partner);
+  showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-/** Funkcja do wyświetlania pytania zgodnie z currentQuestionIndex z sesji */
-async function showSynchronizedQuestion(sessionData, partner) {
-  // Załaduj najnowszą sesję
-  const currentSession = await loadSession(sessionData.token);
-  const index = currentSession.currentQuestionIndex;
-  const quizQuestions = currentSession.quizQuestions;
+/** Wyświetlanie pojedynczego pytania – automatyczne przejście do kolejnego po kliknięciu */
+async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
-    console.log(`Oboje skończyli odpowiedzi.`);
-    showQuizResults(currentSession);
+    console.log(`Partner ${partner} skończył odpowiadać.`);
+    await saveSession(sessionData.token, sessionData);
+    showQuizResults(sessionData);
     return;
   }
+  const total = quizQuestions.length;
   const current = quizQuestions[index];
-  const p1 = currentSession.partner1Name;
-  const p2 = currentSession.partner2Name;
+  const p1 = sessionData.partner1Name;
+  const p2 = sessionData.partner2Name;
   const questionText = formatText(current.text, p1, p2);
 
   let optionsHTML = "";
   if (current.type === "comparative") {
+    // "1" -> p1, "2" -> p2
     optionsHTML = `
       <div class="tile" data-answer="1">${p1}</div>
       <div class="tile" data-answer="2">${p2}</div>
     `;
   } else if (current.type === "yesno") {
+    // "tak" / "nie"
     optionsHTML = `
       <div class="tile" data-answer="tak">Tak</div>
       <div class="tile" data-answer="nie">Nie</div>
@@ -233,76 +244,61 @@ async function showSynchronizedQuestion(sessionData, partner) {
   }
 
   appDiv.innerHTML = `
-    <div class="progress">Pytanie ${index + 1} z ${quizQuestions.length}</div>
+    <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
     <div class="tile-container">
       ${optionsHTML}
     </div>
   `;
-
-  // Dodajemy zdarzenie dla kliknięcia w odpowiedź
+  // Obsługa kliknięcia w odpowiedź
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', async () => {
-      // Podświetlamy wybraną odpowiedź
-      document.querySelectorAll('.tile').forEach(t => t.style.border = "none");
-      tile.style.border = "2px solid #d6336c";
-      const selectedAnswer = tile.getAttribute('data-answer');
-      // Zapisujemy odpowiedź dla danego pytania w odpowiednim obiekcie
-      currentSession.answers["partner" + partner][current.id] = {
+      const answer = tile.getAttribute('data-answer');
+      console.log(`Partner ${partner} kliknął pytanie ${current.id}, odpowiedź: ${answer}`);
+      // Zapisujemy odpowiedź
+      sessionData.answers["partner" + partner][current.id] = {
         category: current.category,
         type: current.type,
-        answer: selectedAnswer
+        answer: answer
       };
-      await saveSession(currentSession.token, currentSession);
-      console.log(`Partner ${partner} odpowiedział na ${current.id}: ${selectedAnswer}`);
-
-      // Teraz czekamy, aż oboje partnerzy udzielą odpowiedzi na to samo pytanie
-      waitForBothAnswers(current.id, currentSession.token).then(async (updatedSession) => {
-        // Gdy oboje odpowiedzieli, zwiększamy currentQuestionIndex
-        if (updatedSession.currentQuestionIndex === index) {
-          updatedSession.currentQuestionIndex = index + 1;
-          await saveSession(updatedSession.token, updatedSession);
-        }
-        // Przejdź do kolejnego pytania (odśwież aktualną sesję)
-        const newSession = await loadSession(updatedSession.token);
-        showSynchronizedQuestion(newSession, partner);
-      });
+      await saveSession(sessionData.token, sessionData);
+      // Krótkie opóźnienie, by widać było podświetlenie
+      setTimeout(() => {
+        showQuestion(index + 1, quizQuestions, sessionData, partner);
+      }, 300);
     });
   });
 }
 
-/** Funkcja pollingująca – czeka, aż dla danego pytania (questionId) oboje partnerzy odpowiedzą */
-function waitForBothAnswers(questionId, token) {
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
-      const session = await loadSession(token);
-      if (session && session.answers.partner1 && session.answers.partner2 &&
-          session.answers.partner1[questionId] && session.answers.partner2[questionId]) {
-        clearInterval(interval);
-        resolve(session);
-      }
-    }, 2000);
-  });
-}
-
-/** Wyświetlanie wyników quizu – ogólny procent zgodności i szczegółowe porównanie odpowiedzi */
+/** Wyświetlanie wyników – czekamy, aż obie strony zakończą */
 async function showQuizResults(sessionData) {
-  const latestSession = await loadSession(sessionData.token);
-  if (!latestSession) {
+  // Wczytujemy najnowszą wersję
+  const latest = await loadSession(sessionData.token);
+  if (!latest) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
     return;
   }
-  const quizQuestions = latestSession.quizQuestions;
-  const answers1 = latestSession.answers.partner1;
-  const answers2 = latestSession.answers.partner2;
-  const p1 = latestSession.partner1Name;
-  const p2 = latestSession.partner2Name;
-  
+  const quizQuestions = latest.quizQuestions;
+  const answers1 = latest.answers.partner1;
+  const answers2 = latest.answers.partner2;
+  // Jeśli brakuje którejś tablicy lub liczba kluczy się nie zgadza, czekamy
+  if (!answers1 || !answers2 || 
+      Object.keys(answers1).length !== quizQuestions.length ||
+      Object.keys(answers2).length !== quizQuestions.length) {
+    console.log("Jeszcze nie wszyscy skończyli. Polling...");
+    appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
+    setTimeout(() => showQuizResults(latest), 5000);
+    return;
+  }
+  // Obliczamy procent zgodności i wyświetlamy szczegóły
+  const p1 = latest.partner1Name;
+  const p2 = latest.partner2Name;
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
+    // Zamiana "1" -> p1, "2" -> p2
     const answer1 = (a1 === "1") ? p1 : (a1 === "2") ? p2 : a1;
     const answer2 = (a2 === "1") ? p1 : (a2 === "2") ? p2 : a2;
     if (a1 === a2) agreements++;
@@ -314,9 +310,9 @@ async function showQuizResults(sessionData) {
       </li>
     `;
   }).join("");
-  
+
   const overallAgreement = ((agreements / total) * 100).toFixed(2);
-  
+
   appDiv.innerHTML = `
     <h2>Wyniki Quizu</h2>
     <p><strong>${p1}</strong> vs <strong>${p2}</strong></p>
@@ -334,9 +330,10 @@ async function showQuizResults(sessionData) {
 (async function main() {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
-  console.log("Token:", token, "Partner:", partner);
-  
+  console.log("main() – Token:", token, "Partner:", partner);
+
   if (!token) {
+    // Partner 1 tworzy nowy quiz
     showCreateQuiz();
   } else {
     const sessionData = await loadSession(token);
@@ -346,7 +343,7 @@ async function showQuizResults(sessionData) {
       return;
     }
     if (partner === "1") {
-      // Partner 1 musi najpierw wybrać kategorie, zanim wyśle link do Partnera 2
+      // Partner 1: jeśli kategorie nie są wybrane, pokaż wybór, inaczej link
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(sessionData);
       } else {
