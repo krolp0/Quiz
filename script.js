@@ -75,84 +75,7 @@ function formatText(text, p1, p2) {
 }
 
 /*************** 4) Dane Quizu ***************/
-const fullQuizData = [
-  {
-    category: "Życie codzienne",
-    questions: [
-      { id: "codzienne1",  type: "comparative", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
-      { id: "codzienne2",  type: "comparative", text: "Kto lepiej zarządza czasem? {p1} vs {p2}" },
-      { id: "codzienne3",  type: "comparative", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
-      { id: "codzienne4",  type: "comparative", text: "Kto częściej podejmuje inicjatywę w codziennych zadaniach? {p1} vs {p2}" },
-      { id: "codzienne5",  type: "comparative", text: "Kto lepiej radzi sobie z obowiązkami domowymi? {p1} vs {p2}" },
-      { id: "codzienne6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
-      { id: "codzienne7",  type: "yesno",       text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
-      { id: "codzienne8",  type: "yesno",       text: "Czy {p2} częściej dba o detale dnia codziennego?" },
-      { id: "codzienne9",  type: "yesno",       text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
-      { id: "codzienne10", type: "yesno",       text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
-    ]
-  },
-  {
-    category: "Romantyzm",
-    questions: [
-      { id: "romantyzm1",  type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
-      { id: "romantyzm2",  type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
-      { id: "romantyzm3",  type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
-      { id: "romantyzm4",  type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
-      { id: "romantyzm5",  type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
-      { id: "romantyzm6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
-      { id: "romantyzm7",  type: "yesno",       text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
-      { id: "romantyzm8",  type: "yesno",       text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
-      { id: "romantyzm9",  type: "yesno",       text: "Czy {p1} częściej myśli o niespodziankach?" },
-      { id: "romantyzm10", type: "yesno",       text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
-    ]
-  },
-  {
-    category: "Przygody i spontaniczność",
-    questions: [
-      { id: "przygody1",   type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
-      { id: "przygody3",   type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
-      { id: "przygody4",   type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
-      { id: "przygody5",   type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
-      { id: "przygody6",   type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej otwarty na nowe doświadczenia?" },
-      { id: "przygody7",   type: "yesno",       text: "Czy {p2} częściej szuka przygód?" },
-      { id: "przygody8",   type: "yesno",       text: "Czy oboje podejmujecie spontaniczne decyzje?" },
-      { id: "przygody9",   type: "yesno",       text: "Czy {p1} jest bardziej skłonny do spontanicznych wypraw?" },
-      { id: "przygody10",  type: "yesno",       text: "Czy {p2} lepiej radzi sobie w nieprzewidywalnych sytuacjach?" }
-    ]
-  },
-  {
-    category: "Plany na przyszłość",
-    questions: [
-      { id: "przyszlosc1",  type: "comparative", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
-      { id: "przyszlosc2",  type: "comparative", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
-      { id: "przyszlosc3",  type: "comparative", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
-      { id: "przyszlosc4",  type: "comparative", text: "Kto częściej myśli o wspólnych planach? {p1} vs {p2}" },
-      { id: "przyszlosc5",  type: "comparative", text: "Kto bardziej angażuje się w planowanie przyszłości? {p1} vs {p2}" },
-      { id: "przyszlosc6",  type: "yesno",       text: "Czy uważasz, że {p1} lepiej planuje przyszłość niż {p2}?" },
-      { id: "przyszlosc7",  type: "yesno",       text: "Czy {p2} częściej myśli o długoterminowych celach?" },
-      { id: "przyszlosc8",  type: "yesno",       text: "Czy oboje macie podobne wizje przyszłości?" },
-      { id: "przyszlosc9",  type: "yesno",       text: "Czy {p1} jest bardziej zdecydowany w planach?" },
-      { id: "przyszlosc10", type: "yesno",       text: "Czy {p2} częściej przejmuje inicjatywę w planowaniu przyszłości?" }
-    ]
-  },
-  {
-    category: "Intymność",
-    questions: [
-      { id: "intymnosc1",  type: "comparative", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
-      { id: "intymnosc2",  type: "comparative", text: "Kto częściej inicjuje intymne gesty? {p1} vs {p2}" },
-      { id: "intymnosc3",  type: "comparative", text: "Kto lepiej rozumie potrzeby partnera? {p1} vs {p2}" },
-      { id: "intymnosc4",  type: "comparative", text: "Kto częściej wyraża swoje uczucia? {p1} vs {p2}" },
-      { id: "intymnosc5",  type: "comparative", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
-      { id: "intymnosc6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej intymny niż {p2}?" },
-      { id: "intymnosc7",  type: "yesno",       text: "Czy {p2} częściej dba o intymność w związku?" },
-      { id: "intymnosc8",  type: "yesno",       text: "Czy oboje czujecie głęboką więź emocjonalną?" },
-      { id: "intymnosc9",  type: "yesno",       text: "Czy {p1} lepiej komunikuje swoje potrzeby intymne?" },
-      { id: "intymnosc10", type: "yesno",       text: "Czy {p2} częściej okazuje uczucia w sposób intymny?" }
-    ]
-  }
-];
-
+// UWAGA: Tutaj nie definiujemy `fullQuizData`. Zawiera je plik quizDATA.js.
 
 /*************** 5) Logika quizu ***************/
 
@@ -200,6 +123,7 @@ async function showCreateQuiz() {
  * ale partner1_answers i partner2_answers pozostają nienaruszone.
  */
 async function showCategorySelection(token, sessionData) {
+  // Korzystamy z globalnej zmiennej fullQuizData (z pliku quizDATA.js)
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
               <label>
@@ -225,7 +149,12 @@ async function showCategorySelection(token, sessionData) {
     const selectedCats = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCats;
     // Zapisz z powrotem w session_data
-    await upsertQuizRow(token, sessionData, sessionData.partner1_answers || {}, sessionData.partner2_answers || {});
+    // Najpierw pobierz aktualny wiersz, żeby nie nadpisać partner1_answers i partner2_answers
+    const existingRow = await loadQuizRow(token);
+    const p1Answers = existingRow?.partner1_answers || {};
+    const p2Answers = existingRow?.partner2_answers || {};
+    // Upsert
+    await upsertQuizRow(token, sessionData, p1Answers, p2Answers);
     showQuizLink(token, sessionData);
   });
 }
@@ -263,7 +192,7 @@ async function startQuiz(token, sessionData, partner) {
   let quizQuestions = [];
   const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
     ? sessionData.selectedCategories
-    : fullQuizData;
+    : fullQuizData; // globalna zmienna
   cats.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
@@ -271,17 +200,13 @@ async function startQuiz(token, sessionData, partner) {
   });
   sessionData.quizQuestions = quizQuestions;
   // Zapisz session_data
-  // Do upsertu pobierzmy aktualne partner1_answers i partner2_answers, by nie nadpisać
   const existingRow = await loadQuizRow(token);
   const existingSessionData = existingRow?.session_data || {};
   const p1Answers = existingRow?.partner1_answers || {};
   const p2Answers = existingRow?.partner2_answers || {};
-
-  // Scal session_data (by zachować partner1Name, partner2Name)
   const newSessionData = { ...existingSessionData, ...sessionData };
   await upsertQuizRow(token, newSessionData, p1Answers, p2Answers);
 
-  // Odpowiedzi lokalne
   let localAnswers = {};
   showQuestion(0, quizQuestions, token, newSessionData, partner, localAnswers);
 }
@@ -334,37 +259,28 @@ function showQuestion(index, quizQuestions, token, sessionData, partner, localAn
   });
 }
 
-/**
- * Po ukończeniu quizu przez danego partnera – zapisujemy odpowiedzi w partnerX_answers,
- * ale jednocześnie zachowujemy session_data i drugą kolumnę z odpowiedziami drugiego partnera.
- */
+/** Zapis ostatecznych odpowiedzi partnera i wyświetlenie wyników */
 async function saveFinalAnswers(token, sessionData, partner, localAnswers) {
-  // Pobierz bieżący stan, by wypełnić resztę kolumn
   const row = await loadQuizRow(token);
   if (!row) {
     console.error("Nie znaleziono wiersza, nie można zapisać odpowiedzi partnera.");
     return;
   }
-  // Metadane
   const finalSessionData = row.session_data || {};
-  // Odpowiedzi drugiego partnera
   const p1Answers = row.partner1_answers || {};
   const p2Answers = row.partner2_answers || {};
 
   if (partner === "1") {
-    // Zaktualizuj partner1_answers
     const merged1 = { ...p1Answers, ...localAnswers };
     await upsertQuizRow(token, finalSessionData, merged1, p2Answers);
   } else {
-    // Zaktualizuj partner2_answers
     const merged2 = { ...p2Answers, ...localAnswers };
     await upsertQuizRow(token, finalSessionData, p1Answers, merged2);
   }
-  // Po zapisaniu – sprawdź wyniki
   showQuizResults(token);
 }
 
-/** Wyświetlanie wyników – czekamy, aż oboje partnerzy zakończą */
+/** Wyświetlanie wyników – czekamy, aż oboje partnerzy zakończą (polling co 1s) */
 async function showQuizResults(token) {
   const row = await loadQuizRow(token);
   if (!row) {
@@ -378,7 +294,6 @@ async function showQuizResults(token) {
   const p2 = sessionData.partner2Name || "Partner2";
   const quizQuestions = sessionData.quizQuestions || [];
 
-  // Sprawdź, czy oboje mają komplet
   if (Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Oczekiwanie na zakończenie quizu przez oboje partnerów...");
@@ -386,7 +301,6 @@ async function showQuizResults(token) {
     setTimeout(() => showQuizResults(token), 1000);
     return;
   }
-  // Oblicz zgodność
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
