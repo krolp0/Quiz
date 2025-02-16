@@ -6,8 +6,9 @@ const appDiv = document.getElementById('app');
 // Upewnij się, że w .env.local masz:
 // NEXT_PUBLIC_SUPABASE_URL=...
 // NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
+
 
 // Zakładamy, że w <script> ładujesz wcześniej supabase-js z CDN, 
 // albo importujesz createClient z '@supabase/supabase-js' (w Next.js module).
