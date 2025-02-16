@@ -78,8 +78,6 @@ function formatText(text, p1, p2) {
 const fullQuizData = [
   {
 /* quizData.js: Plik zawierający wszystkie kategorie i pytania (tablicę fullQuizData). */
-
-    {
       category: "Życie codzienne (Łatwa)",
       questions: [
         { id: "codzienne_easy1",  type: "comparative", text: "Kto częściej robi poranne śniadanie? {p1} vs {p2}" },
