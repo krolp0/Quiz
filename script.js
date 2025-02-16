@@ -2,17 +2,10 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
-// Zmiennych środowisk Next.js używamy przez process.env.NEXT_PUBLIC_...
-// Upewnij się, że w .env.local masz:
-// NEXT_PUBLIC_SUPABASE_URL=...
-// NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+// Wklej swój URL i klucz anon bezpośrednio (nie używaj process.env w przeglądarce)
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
-
-
-// Zakładamy, że w <script> ładujesz wcześniej supabase-js z CDN, 
-// albo importujesz createClient z '@supabase/supabase-js' (w Next.js module).
-const { createClient } = window.supabase; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /*************** 3) Funkcje pomocnicze ***************/
@@ -61,7 +54,7 @@ function formatText(text, p1, p2) {
 }
 
 /*************** 4) Dane Quizu ***************/
-// 5 kategorii po 10 pytań – przykładowo
+// 5 kategorii po 10 pytań – wszystkie
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -97,7 +90,7 @@ const fullQuizData = [
     category: "Przygody i spontaniczność",
     questions: [
       { id: "przygody1",   type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
+      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
       { id: "przygody3",   type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
       { id: "przygody4",   type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
       { id: "przygody5",   type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
