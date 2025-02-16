@@ -13,11 +13,9 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
-
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
-
 async function saveSession(token, sessionData) {
   console.log("saveSession() – zapisuję sesję w Supabase...", token);
   try {
@@ -33,7 +31,6 @@ async function saveSession(token, sessionData) {
     console.error("Błąd przy zapisie sesji:", err);
   }
 }
-
 async function loadSession(token) {
   console.log("loadSession() – wczytuję sesję z Supabase, token:", token);
   try {
@@ -52,13 +49,12 @@ async function loadSession(token) {
     return null;
   }
 }
-
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /*************** 4) Dane Quizu ***************/
-// 5 kategorii po 10 pytań – przykładowo
+// Pełna baza: 5 kategorii, każda po 10 pytań
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -138,25 +134,13 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
-
 /*
   Podejście:
   - Partner 1 tworzy quiz i wybiera kategorie.
   - Odpowiedzi zbieramy lokalnie (w obiekcie localAnswers).
-  - Na końcu quizu scalamy nowo zebrane odpowiedzi z już zapisanymi danymi (jeśli istnieją) w bazie.
-  - Wyniki wyświetlamy, gdy obie strony mają komplet odpowiedzi.
-  - Mechanizm pollingu w showQuizResults sprawdza co 1 sekundę.
+  - Po ukończeniu quizu scalamy nowe odpowiedzi z danymi pobranymi z bazy, aby zachować dane obu partnerów.
+  - Wyniki wyświetlamy, gdy obie strony mają komplet odpowiedzi (mechanizm pollingu co 1 sekundę).
 */
-
-// Funkcja scalająca nowe odpowiedzi z danymi zapisanymi w bazie
-async function mergeAndSaveAnswer(token, sessionData, partner, localAnswers) {
-  const currentSession = await loadSession(token);
-  const existingAnswers = (currentSession && currentSession.answers && currentSession.answers["partner" + partner]) || {};
-  const mergedAnswers = { ...existingAnswers, ...localAnswers };
-  sessionData.answers = sessionData.answers || {};
-  sessionData.answers["partner" + partner] = mergedAnswers;
-  await saveSession(token, sessionData);
-}
 
 async function showCreateQuiz() {
   appDiv.innerHTML = `
@@ -257,6 +241,7 @@ async function startQuiz(sessionData, partner) {
   });
   sessionData.quizQuestions = quizQuestions;
   await saveSession(sessionData.token, sessionData);
+  // Zbieramy odpowiedzi lokalnie
   let localAnswers = {};
   showQuestion(0, quizQuestions, sessionData, partner, localAnswers);
 }
@@ -264,7 +249,7 @@ async function startQuiz(sessionData, partner) {
 async function showQuestion(index, quizQuestions, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} ukończył quiz. Scalanie i zapis finalnych odpowiedzi...`);
-    // Scal nowe odpowiedzi z tym, co jest już w bazie
+    // Scal nowe odpowiedzi z tymi zapisanymi w bazie i zapisz
     await mergeAndSaveAnswer(sessionData.token, sessionData, partner, localAnswers);
     showQuizResults(sessionData);
     return;
@@ -310,9 +295,9 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
 }
 
 async function mergeAndSaveAnswer(token, sessionData, partner, localAnswers) {
+  // Pobierz aktualny stan
   const currentSession = await loadSession(token);
   const existingAnswers = (currentSession && currentSession.answers && currentSession.answers["partner" + partner]) || {};
-  // Scalamy istniejące odpowiedzi z nowymi – operacja shallow merge
   const mergedAnswers = { ...existingAnswers, ...localAnswers };
   sessionData.answers = sessionData.answers || {};
   sessionData.answers["partner" + partner] = mergedAnswers;
