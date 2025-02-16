@@ -135,7 +135,7 @@ const fullQuizData = [
 
 /*************** 5) Logika quizu ***************/
 
-/** Tworzenie quizu – Partner 1 */
+/** Partner 1 tworzy quiz – wpisuje imiona */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -165,15 +165,15 @@ async function showCreateQuiz() {
     };
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowujemy Partnera 1 do wyboru kategorii
+    // Przekierowujemy Partnera 1 do ekranu wyboru kategorii
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Wybór kategorii – Partner 1 musi wybrać kategorie przed wysłaniem linku do Partnera 2 */
+/** Ekran wyboru kategorii – Partner 1 musi wybrać kategorie przed wysłaniem linku do Partnera 2 */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
-    // Domyślnie zaznaczona jest tylko pierwsza kategoria
+    // Domyślnie zaznaczona tylko pierwsza kategoria; pozostałe niezaznaczone
     return `<div>
               <label>
                 <input type="checkbox" name="category" value="${cat.category}" ${index === 0 ? "checked" : ""}>
@@ -190,20 +190,21 @@ async function showCategorySelection(sessionData) {
   `;
   document.getElementById('categoryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    // Jeśli nie wybrano żadnej kategorii lub wybrano pustą tablicę, wyświetl komunikat
     const selected = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
-    if (selected.length === 0) {
+    if (!selected || selected.length === 0) {
       alert("Wybierz przynajmniej jedną kategorię.");
       return;
     }
     const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCategories;
     await saveSession(sessionData.token, sessionData);
-    // Po zatwierdzeniu wyboru kategorii, wyświetlamy przycisk "Rozpocznij quiz"
+    // Po wyborze kategorii wyświetlamy ekran z linkiem dla Partnera 2 oraz przyciskiem "Rozpocznij quiz"
     showQuizLink(sessionData);
   });
 }
 
-/** Wyświetlenie linku dla Partnera 2 oraz przycisku "Rozpocznij quiz" dla Partnera 1 */
+/** Ekran dla Partnera 1 – wyświetlenie linku dla Partnera 2 oraz przycisku "Rozpocznij quiz" */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -213,7 +214,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
-    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij poniżej, aby rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -227,11 +228,11 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – używamy wybranych kategorii, lub jeśli nie wybrano, wszystkich */
+/** Rozpoczęcie quizu – ładowane są pytania z wybranych kategorii lub wszystkich, jeśli nie wybrano */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz dla partner=${partner}`);
   let quizQuestions = [];
-  const categories = sessionData.selectedCategories || fullQuizData;
+  const categories = (sessionData.selectedCategories && sessionData.selectedCategories.length > 0) ? sessionData.selectedCategories : fullQuizData;
   categories.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
@@ -245,7 +246,7 @@ async function startQuiz(sessionData, partner) {
   showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-/** Wyświetlanie pojedynczego pytania – automatyczne przechodzenie do kolejnego po kliknięciu odpowiedzi */
+/** Wyświetlanie pojedynczego pytania – automatycznie przechodzi do kolejnego po kliknięciu odpowiedzi */
 async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} skończył odpowiadać.`);
@@ -272,7 +273,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
     `;
   }
   
-  // Wyświetlamy pytanie oraz opcje (bez przycisku "Przejdź dalej")
+  // Wyświetlamy pytanie oraz opcje – bez przycisku "Przejdź dalej"
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
@@ -281,23 +282,20 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
     </div>
   `;
   
-  // Po kliknięciu w kafelek automatycznie zapisujemy odpowiedź i przechodzimy do następnego pytania
+  // Po kliknięciu w kafelek automatycznie zapisujemy odpowiedź i przechodzimy do kolejnego pytania
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', async () => {
-      // Podświetlamy wybrany kafelek
+      // Podświetlenie wybranej odpowiedzi
       document.querySelectorAll('.tile').forEach(t => t.style.border = "none");
       tile.style.border = "2px solid #d6336c";
       const selectedAnswer = tile.getAttribute('data-answer');
-      
-      // Zapisujemy odpowiedź
       sessionData.answers["partner" + partner][current.id] = {
         category: current.category,
         type: current.type,
         answer: selectedAnswer
       };
       await saveSession(sessionData.token, sessionData);
-      
-      // Opcjonalnie, dodajemy krótkie opóźnienie, aby użytkownik zobaczył podświetlenie
+      // Krótkie opóźnienie, by użytkownik mógł zobaczyć podświetlenie, potem przechodzimy do następnego pytania
       setTimeout(() => {
         showQuestion(index + 1, quizQuestions, sessionData, partner);
       }, 300);
@@ -305,7 +303,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-/** Wyświetlanie wyników quizu: ogólny procent zgodności oraz szczegółowe odpowiedzi */
+/** Wyświetlanie wyników quizu – procent zgodności i szczegółowe odpowiedzi */
 async function showQuizResults(sessionData) {
   const latestSession = await loadSession(sessionData.token);
   if (!latestSession) {
@@ -318,7 +316,7 @@ async function showQuizResults(sessionData) {
   const p1 = latestSession.partner1Name;
   const p2 = latestSession.partner2Name;
   
-  // Jeśli jedna ze stron jeszcze nie skończyła, ustaw polling
+  // Jeśli jeden z partnerów jeszcze nie ukończył, polling co 5 sekund
   if (!answers1 || !answers2 || Object.keys(answers1).length !== quizQuestions.length || Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Jeszcze nie wszyscy skończyli. Polling...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
@@ -331,13 +329,13 @@ async function showQuizResults(sessionData) {
   let detailsHTML = quizQuestions.map(q => {
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
-    // Zamieniamy "1" -> p1, "2" -> p2, a "tak"/"nie" zostawiamy
+    // Zamiana "1" -> p1, "2" -> p2, a "tak"/"nie" pozostaje
     const answer1 = (a1 === "1") ? p1 : (a1 === "2") ? p2 : a1;
     const answer2 = (a2 === "1") ? p1 : (a2 === "2") ? p2 : a2;
     if (a1 === a2) agreements++;
     return `
       <li>
-        <strong>${q.category}: ${q.text}</strong><br />
+        <strong>${q.category}:</strong> ${q.text}<br />
         <em>Partner 1:</em> ${answer1}<br />
         <em>Partner 2:</em> ${answer2}
       </li>
@@ -354,7 +352,7 @@ async function showQuizResults(sessionData) {
     <ul>${detailsHTML}</ul>
     <button id="resetBtn">Resetuj Quiz</button>
   `;
-  document.getElementById('resetBtn').addEventListener('click', async () => {
+  document.getElementById('resetBtn').addEventListener('click', () => {
     window.location.href = window.location.origin + window.location.pathname;
   });
 }
@@ -366,19 +364,18 @@ async function showQuizResults(sessionData) {
   console.log("Token:", token, "Partner:", partner);
   
   if (!token) {
-    // Partner 1 tworzy quiz
+    // Brak tokenu – Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
     const sessionData = await loadSession(token);
     console.log("Załadowane sessionData:", sessionData);
-    
     if (!sessionData) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
     if (partner === "1") {
-      // Partner 1 musi najpierw wybrać kategorie, zanim wyśle link do Partnera 2
-      if (!sessionData.selectedCategories) {
+      // Dla Partnera 1: jeśli nie wybrano kategorii lub lista jest pusta, pokaż wybór kategorii; w przeciwnym razie wyświetl link i przycisk "Rozpocznij quiz"
+      if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(sessionData);
       } else {
         showQuizLink(sessionData);
