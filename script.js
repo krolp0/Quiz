@@ -2,7 +2,7 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
-// Wklej swoje dane (URL i klucz anon) - bez process.env w przeglądarce
+// Wklej swoje dane (URL i klucz anon) – nie dodawaj żadnych dodatkowych ścieżek
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
 const { createClient } = window.supabase;
@@ -58,7 +58,7 @@ function formatText(text, p1, p2) {
 }
 
 /*************** 4) Dane Quizu ***************/
-// Pełna baza: 5 kategorii, każda po 10 pytań
+// 5 kategorii po 10 pytań – przykładowo
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -94,7 +94,7 @@ const fullQuizData = [
     category: "Przygody i spontaniczność",
     questions: [
       { id: "przygody1",   type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
-      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
+      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
       { id: "przygody3",   type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
       { id: "przygody4",   type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
       { id: "przygody5",   type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
@@ -138,8 +138,14 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
+/*
+  Podejście:
+  - Partner 1 tworzy quiz i wybiera kategorie.
+  - Odpowiedzi zbieramy lokalnie (w obiekcie localAnswers) i dopiero po ukończeniu quizu wysyłamy finalny obiekt do Supabase.
+  - Wyniki wyświetlamy, gdy w bazie są pełne dane obu partnerów.
+  - Mechanizm pollingu w funkcji showQuizResults sprawdza co 1 sekundę.
+*/
 
-/** Partner 1 tworzy quiz – wpisuje imiona */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -169,12 +175,10 @@ async function showCreateQuiz() {
     };
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowujemy Partnera 1 do ekranu wyboru kategorii
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Partner 1 wybiera kategorie */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -205,7 +209,6 @@ async function showCategorySelection(sessionData) {
   });
 }
 
-/** Ekran dla Partnera 1 – link dla Partnera 2 i przycisk startu */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -229,7 +232,6 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii, zapisujemy w bazie, zbieramy odpowiedzi lokalnie */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz() – Partner ${partner}`);
   let quizQuestions = [];
@@ -242,15 +244,12 @@ async function startQuiz(sessionData, partner) {
     });
   });
   sessionData.quizQuestions = quizQuestions;
-  // Zapisujemy quizQuestions w bazie
   await saveSession(sessionData.token, sessionData);
-
-  // Zbieramy odpowiedzi w obiekcie localAnswers
+  // Zbieramy odpowiedzi lokalnie
   let localAnswers = {};
   showQuestion(0, quizQuestions, sessionData, partner, localAnswers);
 }
 
-/** Wyświetlanie pojedynczego pytania – przejście do następnego po kliknięciu */
 async function showQuestion(index, quizQuestions, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} ukończył quiz. Zapisuję finalne odpowiedzi...`);
@@ -264,7 +263,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
   const p1 = sessionData.partner1Name;
   const p2 = sessionData.partner2Name;
   const questionText = formatText(current.text, p1, p2);
-
   let optionsHTML = "";
   if (current.type === "comparative") {
     optionsHTML = `
@@ -277,7 +275,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
       <div class="tile" data-answer="nie">Nie</div>
     `;
   }
-
   appDiv.innerHTML = `
     <div class="progress">Pytanie ${index + 1} z ${total}</div>
     <h2>${questionText}</h2>
@@ -285,7 +282,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
       ${optionsHTML}
     </div>
   `;
-
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', () => {
       const answer = tile.getAttribute('data-answer');
@@ -302,7 +298,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
   });
 }
 
-/** Wyświetlanie wyników – czekamy, aż oboje partnerzy skończą */
 async function showQuizResults(sessionData) {
   const latest = await loadSession(sessionData.token);
   if (!latest) {
@@ -314,16 +309,18 @@ async function showQuizResults(sessionData) {
   const answers2 = latest.answers.partner2;
   const p1 = latest.partner1Name;
   const p2 = latest.partner2Name;
-
+  // Jeśli obie strony nie mają kompletnej liczby odpowiedzi, polluj co 1 sekundę
   if (!answers1 || !answers2 ||
       Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Oczekiwanie na zakończenie quizu przez oboje partnerów...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
-    setTimeout(() => showQuizResults(latest), 5000);
+    setTimeout(async () => {
+      const newSession = await loadSession(sessionData.token);
+      showQuizResults(newSession);
+    }, 1000);
     return;
   }
-
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
@@ -341,9 +338,7 @@ async function showQuizResults(sessionData) {
       </li>
     `;
   }).join("");
-
   const overallAgreement = ((agreements / total) * 100).toFixed(2);
-
   appDiv.innerHTML = `
     <h2>Wyniki Quizu</h2>
     <p><strong>${p1}</strong> vs <strong>${p2}</strong></p>
@@ -362,7 +357,6 @@ async function showQuizResults(sessionData) {
   const token = getQueryParam('token');
   const partner = getQueryParam('partner');
   console.log("main() – Token:", token, "Partner:", partner);
-
   if (!token) {
     // Partner 1 tworzy quiz
     showCreateQuiz();
