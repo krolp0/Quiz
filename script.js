@@ -324,7 +324,6 @@ const fullQuizData = [
     }
   
   ];
-  
 
 /*************** 5) Logika quizu ***************/
 
