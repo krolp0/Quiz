@@ -2,9 +2,9 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
-// Wklej swój URL i klucz anon bezpośrednio (nie używaj process.env w przeglądarce)
+// Wklej swoje dane (URL i klucz anon) - bez process.env w przeglądarce
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -13,9 +13,11 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
+
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
+
 async function saveSession(token, sessionData) {
   console.log("saveSession() – zapisuję sesję w Supabase...", token);
   try {
@@ -31,6 +33,7 @@ async function saveSession(token, sessionData) {
     console.error("Błąd przy zapisie sesji:", err);
   }
 }
+
 async function loadSession(token) {
   console.log("loadSession() – wczytuję sesję z Supabase, token:", token);
   try {
@@ -49,12 +52,13 @@ async function loadSession(token) {
     return null;
   }
 }
+
 function formatText(text, p1, p2) {
   return text.replace(/{p1}/g, p1).replace(/{p2}/g, p2);
 }
 
 /*************** 4) Dane Quizu ***************/
-// 5 kategorii po 10 pytań – wszystkie
+// Pełna baza: 5 kategorii, każda po 10 pytań
 const fullQuizData = [
   {
     category: "Życie codzienne",
@@ -165,12 +169,12 @@ async function showCreateQuiz() {
     };
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowujemy Partnera 1 do wyboru kategorii
+    // Przekierowujemy Partnera 1 do ekranu wyboru kategorii
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Partner 1 wybiera kategorie (domyślnie pierwsza zaznaczona) */
+/** Partner 1 wybiera kategorie */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
@@ -194,7 +198,6 @@ async function showCategorySelection(sessionData) {
       alert("Wybierz przynajmniej jedną kategorię.");
       return;
     }
-    // Filtrujemy pełne dane na podstawie wybranych kategorii
     const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCategories;
     await saveSession(sessionData.token, sessionData);
@@ -202,7 +205,7 @@ async function showCategorySelection(sessionData) {
   });
 }
 
-/** Ekran z linkiem do Partnera 2 i przyciskiem startu quizu dla Partnera 1 */
+/** Ekran dla Partnera 1 – link dla Partnera 2 i przycisk startu */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -212,7 +215,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
-    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij przycisk, aby rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -226,7 +229,7 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii, zbieramy odpowiedzi lokalnie. */
+/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii, zapisujemy w bazie, zbieramy odpowiedzi lokalnie */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz() – Partner ${partner}`);
   let quizQuestions = [];
@@ -239,22 +242,20 @@ async function startQuiz(sessionData, partner) {
     });
   });
   sessionData.quizQuestions = quizQuestions;
-  // Zapisz quizQuestions w bazie
+  // Zapisujemy quizQuestions w bazie
   await saveSession(sessionData.token, sessionData);
 
-  // Inicjujemy lokalny obiekt do zbierania odpowiedzi
+  // Zbieramy odpowiedzi w obiekcie localAnswers
   let localAnswers = {};
   showQuestion(0, quizQuestions, sessionData, partner, localAnswers);
 }
 
-/** Wyświetlanie pojedynczego pytania – automatyczne przejście do następnego po kliknięciu */
+/** Wyświetlanie pojedynczego pytania – przejście do następnego po kliknięciu */
 async function showQuestion(index, quizQuestions, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} ukończył quiz. Zapisuję finalne odpowiedzi...`);
-    // Gdy partner ukończy quiz, zapisujemy localAnswers w sessionData i wysyłamy do bazy
     sessionData.answers["partner" + partner] = localAnswers;
     await saveSession(sessionData.token, sessionData);
-    // Pokazujemy wyniki (jeśli druga strona też skończyła)
     showQuizResults(sessionData);
     return;
   }
@@ -285,7 +286,6 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
     </div>
   `;
 
-  // Po kliknięciu kafelka zapisujemy odpowiedź lokalnie i przechodzimy do kolejnego pytania
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', () => {
       const answer = tile.getAttribute('data-answer');
@@ -302,7 +302,7 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
   });
 }
 
-/** Wyświetlanie wyników – czekamy, aż oboje partnerzy ukończą quiz */
+/** Wyświetlanie wyników – czekamy, aż oboje partnerzy skończą */
 async function showQuizResults(sessionData) {
   const latest = await loadSession(sessionData.token);
   if (!latest) {
@@ -315,25 +315,21 @@ async function showQuizResults(sessionData) {
   const p1 = latest.partner1Name;
   const p2 = latest.partner2Name;
 
-  // Sprawdzamy, czy obie strony mają pełen komplet odpowiedzi
   if (!answers1 || !answers2 ||
       Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Oczekiwanie na zakończenie quizu przez oboje partnerów...");
     appDiv.innerHTML = `<p>Oczekiwanie na zakończenie quizu przez oboje partnerów...</p>`;
-    // Polling co 5s
     setTimeout(() => showQuizResults(latest), 5000);
     return;
   }
 
-  // Jeśli oboje mają komplet, obliczamy wyniki
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
     const questionText = formatText(q.text, p1, p2);
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
-    // Zamiana "1" -> p1, "2" -> p2
     const answer1 = (a1 === "1") ? p1 : (a1 === "2") ? p2 : a1;
     const answer2 = (a2 === "1") ? p1 : (a2 === "2") ? p2 : a2;
     if (a1 === a2) agreements++;
@@ -371,7 +367,6 @@ async function showQuizResults(sessionData) {
     // Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
-    // Wczytujemy sesję z bazy
     const sessionData = await loadSession(token);
     console.log("Załadowane sessionData:", sessionData);
     if (!sessionData) {
@@ -379,7 +374,6 @@ async function showQuizResults(sessionData) {
       return;
     }
     if (partner === "1") {
-      // Partner 1: wybór kategorii albo link
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(sessionData);
       } else {
