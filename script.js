@@ -2,10 +2,9 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
-// Wstaw swoje dane (URL i klucz anon) – upewnij się, że to ANON KEY
+// Upewnij się, że to ANON KEY i właściwy URL
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
-
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -21,8 +20,8 @@ function generateToken() {
 
 // Zapis/aktualizacja sesji w tabeli 'quizzes'
 async function saveSession(token, sessionData) {
+  console.log("saveSession() – zapisuję sesję w Supabase...");
   try {
-    console.log("saveSession() – zapisuję sesję w Supabase...");
     const { data, error } = await supabase
       .from('quizzes')
       .upsert({ token, session_data: sessionData });
@@ -38,8 +37,8 @@ async function saveSession(token, sessionData) {
 
 // Odczyt sesji z tabeli 'quizzes'
 async function loadSession(token) {
+  console.log("loadSession() – wczytuję sesję z Supabase, token:", token);
   try {
-    console.log("loadSession() – wczytuję sesję z Supabase, token:", token);
     const { data, error } = await supabase
       .from('quizzes')
       .select('session_data')
@@ -61,39 +60,83 @@ function formatText(text, p1, p2) {
 }
 
 /*************** 4) Dane Quizu ***************/
-// Przykładowo 2 kategorie – wstaw docelowo wszystkie
+// Wszystkie kategorie (5) – każda po 10 pytań
 const fullQuizData = [
   {
     category: "Życie codzienne",
     questions: [
-      { id: "codzienne1", type: "comparative", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
-      { id: "codzienne2", type: "comparative", text: "Kto lepiej zarządza czasem? {p1} vs {p2}" },
-      { id: "codzienne3", type: "comparative", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
-      { id: "codzienne4", type: "comparative", text: "Kto częściej podejmuje inicjatywę w codziennych zadaniach? {p1} vs {p2}" },
-      { id: "codzienne5", type: "comparative", text: "Kto lepiej radzi sobie z obowiązkami domowymi? {p1} vs {p2}" },
-      { id: "codzienne6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
-      { id: "codzienne7", type: "yesno", text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
-      { id: "codzienne8", type: "yesno", text: "Czy {p2} częściej dba o detale dnia codziennego?" },
-      { id: "codzienne9", type: "yesno", text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
-      { id: "codzienne10", type: "yesno", text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
+      { id: "codzienne1",  type: "comparative", text: "Kto jest bardziej zorganizowany? {p1} vs {p2}" },
+      { id: "codzienne2",  type: "comparative", text: "Kto lepiej zarządza czasem? {p1} vs {p2}" },
+      { id: "codzienne3",  type: "comparative", text: "Kto bardziej dba o porządek w domu? {p1} vs {p2}" },
+      { id: "codzienne4",  type: "comparative", text: "Kto częściej podejmuje inicjatywę w codziennych zadaniach? {p1} vs {p2}" },
+      { id: "codzienne5",  type: "comparative", text: "Kto lepiej radzi sobie z obowiązkami domowymi? {p1} vs {p2}" },
+      { id: "codzienne6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej punktualny niż {p2}?" },
+      { id: "codzienne7",  type: "yesno",       text: "Czy {p1} skuteczniej organizuje wspólne sprawy?" },
+      { id: "codzienne8",  type: "yesno",       text: "Czy {p2} częściej dba o detale dnia codziennego?" },
+      { id: "codzienne9",  type: "yesno",       text: "Czy oboje podchodzicie do codziennych obowiązków podobnie?" },
+      { id: "codzienne10", type: "yesno",       text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
     ]
   },
   {
     category: "Romantyzm",
     questions: [
-      { id: "romantyzm1", type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
-      { id: "romantyzm2", type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
-      { id: "romantyzm3", type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
-      { id: "romantyzm4", type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
-      { id: "romantyzm5", type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
-      { id: "romantyzm6", type: "yesno", text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
-      { id: "romantyzm7", type: "yesno", text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
-      { id: "romantyzm8", type: "yesno", text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
-      { id: "romantyzm9", type: "yesno", text: "Czy {p1} częściej myśli o niespodziankach?" },
-      { id: "romantyzm10", type: "yesno", text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
+      { id: "romantyzm1",  type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
+      { id: "romantyzm2",  type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
+      { id: "romantyzm3",  type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
+      { id: "romantyzm4",  type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
+      { id: "romantyzm5",  type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
+      { id: "romantyzm6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
+      { id: "romantyzm7",  type: "yesno",       text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
+      { id: "romantyzm8",  type: "yesno",       text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
+      { id: "romantyzm9",  type: "yesno",       text: "Czy {p1} częściej myśli o niespodziankach?" },
+      { id: "romantyzm10", type: "yesno",       text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
+    ]
+  },
+  {
+    category: "Przygody i spontaniczność",
+    questions: [
+      { id: "przygody1",   type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
+      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziewane wypady? {p1} vs {p2}" },
+      { id: "przygody3",   type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
+      { id: "przygody4",   type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
+      { id: "przygody5",   type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
+      { id: "przygody6",   type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej otwarty na nowe doświadczenia?" },
+      { id: "przygody7",   type: "yesno",       text: "Czy {p2} częściej szuka przygód?" },
+      { id: "przygody8",   type: "yesno",       text: "Czy oboje podejmujecie spontaniczne decyzje?" },
+      { id: "przygody9",   type: "yesno",       text: "Czy {p1} jest bardziej skłonny do spontanicznych wypraw?" },
+      { id: "przygody10",  type: "yesno",       text: "Czy {p2} lepiej radzi sobie w nieprzewidywalnych sytuacjach?" }
+    ]
+  },
+  {
+    category: "Plany na przyszłość",
+    questions: [
+      { id: "przyszlosc1",  type: "comparative", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
+      { id: "przyszlosc2",  type: "comparative", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
+      { id: "przyszlosc3",  type: "comparative", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
+      { id: "przyszlosc4",  type: "comparative", text: "Kto częściej myśli o wspólnych planach? {p1} vs {p2}" },
+      { id: "przyszlosc5",  type: "comparative", text: "Kto bardziej angażuje się w planowanie przyszłości? {p1} vs {p2}" },
+      { id: "przyszlosc6",  type: "yesno",       text: "Czy uważasz, że {p1} lepiej planuje przyszłość niż {p2}?" },
+      { id: "przyszlosc7",  type: "yesno",       text: "Czy {p2} częściej myśli o długoterminowych celach?" },
+      { id: "przyszlosc8",  type: "yesno",       text: "Czy oboje macie podobne wizje przyszłości?" },
+      { id: "przyszlosc9",  type: "yesno",       text: "Czy {p1} jest bardziej zdecydowany w planach?" },
+      { id: "przyszlosc10", type: "yesno",       text: "Czy {p2} częściej przejmuje inicjatywę w planowaniu przyszłości?" }
+    ]
+  },
+  {
+    category: "Intymność",
+    questions: [
+      { id: "intymnosc1",  type: "comparative", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
+      { id: "intymnosc2",  type: "comparative", text: "Kto częściej inicjuje intymne gesty? {p1} vs {p2}" },
+      { id: "intymnosc3",  type: "comparative", text: "Kto lepiej rozumie potrzeby partnera? {p1} vs {p2}" },
+      { id: "intymnosc4",  type: "comparative", text: "Kto częściej wyraża swoje uczucia? {p1} vs {p2}" },
+      { id: "intymnosc5",  type: "comparative", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
+      { id: "intymnosc6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej intymny niż {p2}?" },
+      { id: "intymnosc7",  type: "yesno",       text: "Czy {p2} częściej dba o intymność w związku?" },
+      { id: "intymnosc8",  type: "yesno",       text: "Czy oboje czujecie głęboką więź emocjonalną?" },
+      { id: "intymnosc9",  type: "yesno",       text: "Czy {p1} lepiej komunikuje swoje potrzeby intymne?" },
+      { id: "intymnosc10", type: "yesno",       text: "Czy {p2} częściej okazuje uczucia w sposób intymny?" }
     ]
   }
-  // Dodaj kolejne kategorie wg potrzeb
 ];
 
 /*************** 5) Logika quizu ***************/
@@ -125,18 +168,17 @@ async function showCreateQuiz() {
       partner2Name: p2,
       answers: {}
     };
-    // Zapisujemy w bazie
     await saveSession(token, sessionData);
     console.log("Utworzono quiz, token:", token);
-    // Przekierowanie Partnera 1 do ekranu wyboru kategorii
+    // Przekierowanie do wyboru kategorii
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Ekran wyboru kategorii – Partner 1 musi wybrać kategorie przed wysłaniem linku do Partnera 2 */
+/** Wybór kategorii – Partner 1 */
 async function showCategorySelection(sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
-    // Domyślnie zaznaczona tylko pierwsza kategoria
+    // Domyślnie tylko pierwsza kategoria zaznaczona
     return `<div>
               <label>
                 <input type="checkbox" name="category" value="${cat.category}" ${index === 0 ? "checked" : ""}>
@@ -160,13 +202,12 @@ async function showCategorySelection(sessionData) {
     }
     const selectedCategories = fullQuizData.filter(cat => selected.includes(cat.category));
     sessionData.selectedCategories = selectedCategories;
-    // Zapisujemy
     await saveSession(sessionData.token, sessionData);
     showQuizLink(sessionData);
   });
 }
 
-/** Ekran dla Partnera 1 – wyświetla link dla Partnera 2 i przycisk "Rozpocznij quiz" */
+/** Link dla Partnera 2 i przycisk startu dla Partnera 1 */
 async function showQuizLink(sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${sessionData.token}&partner=2`;
@@ -176,7 +217,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
-    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij przycisk, aby rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -190,11 +231,10 @@ async function showQuizLink(sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii */
+/** Rozpoczęcie quizu – budujemy listę pytań z wybranych kategorii */
 async function startQuiz(sessionData, partner) {
   console.log(`startQuiz() – Partner ${partner}`);
   let quizQuestions = [];
-  // Jeśli partner 1 wybrał kategorie, używamy ich; w przeciwnym razie bierzemy wszystkie
   const categories = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
     ? sessionData.selectedCategories
     : fullQuizData;
@@ -206,7 +246,7 @@ async function startQuiz(sessionData, partner) {
   });
 
   sessionData.quizQuestions = quizQuestions;
-  // Inicjalizujemy obiekt odpowiedzi, jeśli nie istnieje
+  // Inicjalizujemy answers, jeśli nie istnieje
   if (!sessionData.answers["partner" + partner]) {
     sessionData.answers["partner" + partner] = {};
   }
@@ -214,11 +254,12 @@ async function startQuiz(sessionData, partner) {
   showQuestion(0, quizQuestions, sessionData, partner);
 }
 
-/** Wyświetlanie pojedynczego pytania – automatyczne przejście do kolejnego po kliknięciu */
+/** Wyświetlanie pojedynczego pytania – automatyczne przejście do kolejnego */
 async function showQuestion(index, quizQuestions, sessionData, partner) {
   if (index >= quizQuestions.length) {
     console.log(`Partner ${partner} skończył odpowiadać.`);
     await saveSession(sessionData.token, sessionData);
+    // Od razu sprawdzamy, czy oboje skończyli – bez czekania na polling
     showQuizResults(sessionData);
     return;
   }
@@ -230,13 +271,11 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
 
   let optionsHTML = "";
   if (current.type === "comparative") {
-    // "1" -> p1, "2" -> p2
     optionsHTML = `
       <div class="tile" data-answer="1">${p1}</div>
       <div class="tile" data-answer="2">${p2}</div>
     `;
   } else if (current.type === "yesno") {
-    // "tak" / "nie"
     optionsHTML = `
       <div class="tile" data-answer="tak">Tak</div>
       <div class="tile" data-answer="nie">Nie</div>
@@ -250,19 +289,17 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
       ${optionsHTML}
     </div>
   `;
-  // Obsługa kliknięcia w odpowiedź
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', async () => {
       const answer = tile.getAttribute('data-answer');
-      console.log(`Partner ${partner} kliknął pytanie ${current.id}, odpowiedź: ${answer}`);
-      // Zapisujemy odpowiedź
+      console.log(`Partner ${partner} kliknął ${current.id}, odpowiedź: ${answer}`);
       sessionData.answers["partner" + partner][current.id] = {
         category: current.category,
         type: current.type,
         answer: answer
       };
       await saveSession(sessionData.token, sessionData);
-      // Krótkie opóźnienie, by widać było podświetlenie
+      // Przechodzimy do kolejnego pytania
       setTimeout(() => {
         showQuestion(index + 1, quizQuestions, sessionData, partner);
       }, 300);
@@ -270,9 +307,8 @@ async function showQuestion(index, quizQuestions, sessionData, partner) {
   });
 }
 
-/** Wyświetlanie wyników – czekamy, aż obie strony zakończą */
+/** Wyświetlanie wyników – formatujemy też tekst pytania z {p1} i {p2} */
 async function showQuizResults(sessionData) {
-  // Wczytujemy najnowszą wersję
   const latest = await loadSession(sessionData.token);
   if (!latest) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
@@ -281,8 +317,11 @@ async function showQuizResults(sessionData) {
   const quizQuestions = latest.quizQuestions;
   const answers1 = latest.answers.partner1;
   const answers2 = latest.answers.partner2;
-  // Jeśli brakuje którejś tablicy lub liczba kluczy się nie zgadza, czekamy
-  if (!answers1 || !answers2 || 
+  const p1 = latest.partner1Name;
+  const p2 = latest.partner2Name;
+
+  // Sprawdzamy, czy oboje skończyli
+  if (!answers1 || !answers2 ||
       Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Jeszcze nie wszyscy skończyli. Polling...");
@@ -290,12 +329,12 @@ async function showQuizResults(sessionData) {
     setTimeout(() => showQuizResults(latest), 5000);
     return;
   }
-  // Obliczamy procent zgodności i wyświetlamy szczegóły
-  const p1 = latest.partner1Name;
-  const p2 = latest.partner2Name;
+
   let total = quizQuestions.length;
   let agreements = 0;
+  // Tutaj używamy formatText do zamiany {p1}, {p2} w wynikach
   let detailsHTML = quizQuestions.map(q => {
+    const questionText = formatText(q.text, p1, p2);
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
     // Zamiana "1" -> p1, "2" -> p2
@@ -304,7 +343,7 @@ async function showQuizResults(sessionData) {
     if (a1 === a2) agreements++;
     return `
       <li>
-        <strong>${q.category}:</strong> ${q.text}<br />
+        <strong>${q.category}:</strong> ${questionText}<br />
         <em>Partner 1:</em> ${answer1}<br />
         <em>Partner 2:</em> ${answer2}
       </li>
@@ -343,10 +382,11 @@ async function showQuizResults(sessionData) {
       return;
     }
     if (partner === "1") {
-      // Partner 1: jeśli kategorie nie są wybrane, pokaż wybór, inaczej link
+      // Jeśli kategorie nie wybrane, pokaż wybór
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
         showCategorySelection(sessionData);
       } else {
+        // Inaczej pokaż link i start quizu
         showQuizLink(sessionData);
       }
     } else if (partner === "2") {
