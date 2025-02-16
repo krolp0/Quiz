@@ -138,13 +138,25 @@ const fullQuizData = [
 ];
 
 /*************** 5) Logika quizu ***************/
+
 /*
   Podejście:
   - Partner 1 tworzy quiz i wybiera kategorie.
-  - Odpowiedzi zbieramy lokalnie (w obiekcie localAnswers) i dopiero po ukończeniu quizu wysyłamy finalny obiekt do Supabase.
-  - Wyniki wyświetlamy, gdy w bazie są pełne dane obu partnerów.
-  - Mechanizm pollingu w funkcji showQuizResults sprawdza co 1 sekundę.
+  - Odpowiedzi zbieramy lokalnie (w obiekcie localAnswers).
+  - Na końcu quizu scalamy nowo zebrane odpowiedzi z już zapisanymi danymi (jeśli istnieją) w bazie.
+  - Wyniki wyświetlamy, gdy obie strony mają komplet odpowiedzi.
+  - Mechanizm pollingu w showQuizResults sprawdza co 1 sekundę.
 */
+
+// Funkcja scalająca nowe odpowiedzi z danymi zapisanymi w bazie
+async function mergeAndSaveAnswer(token, sessionData, partner, localAnswers) {
+  const currentSession = await loadSession(token);
+  const existingAnswers = (currentSession && currentSession.answers && currentSession.answers["partner" + partner]) || {};
+  const mergedAnswers = { ...existingAnswers, ...localAnswers };
+  sessionData.answers = sessionData.answers || {};
+  sessionData.answers["partner" + partner] = mergedAnswers;
+  await saveSession(token, sessionData);
+}
 
 async function showCreateQuiz() {
   appDiv.innerHTML = `
@@ -218,7 +230,7 @@ async function showQuizLink(sessionData) {
     <div class="link-box" id="partner2Link">${partner2Link}</div>
     <button id="copyBtn">Kopiuj link</button>
     <hr />
-    <p>Jako <strong>${sessionData.partner1Name}</strong> możesz rozpocząć quiz.</p>
+    <p>Jako <strong>${sessionData.partner1Name}</strong> kliknij przycisk, aby rozpocząć quiz.</p>
     <button id="startQuizBtn">Rozpocznij quiz</button>
   `;
   document.getElementById('copyBtn').addEventListener('click', () => {
@@ -245,16 +257,15 @@ async function startQuiz(sessionData, partner) {
   });
   sessionData.quizQuestions = quizQuestions;
   await saveSession(sessionData.token, sessionData);
-  // Zbieramy odpowiedzi lokalnie
   let localAnswers = {};
   showQuestion(0, quizQuestions, sessionData, partner, localAnswers);
 }
 
 async function showQuestion(index, quizQuestions, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
-    console.log(`Partner ${partner} ukończył quiz. Zapisuję finalne odpowiedzi...`);
-    sessionData.answers["partner" + partner] = localAnswers;
-    await saveSession(sessionData.token, sessionData);
+    console.log(`Partner ${partner} ukończył quiz. Scalanie i zapis finalnych odpowiedzi...`);
+    // Scal nowe odpowiedzi z tym, co jest już w bazie
+    await mergeAndSaveAnswer(sessionData.token, sessionData, partner, localAnswers);
     showQuizResults(sessionData);
     return;
   }
@@ -298,6 +309,16 @@ async function showQuestion(index, quizQuestions, sessionData, partner, localAns
   });
 }
 
+async function mergeAndSaveAnswer(token, sessionData, partner, localAnswers) {
+  const currentSession = await loadSession(token);
+  const existingAnswers = (currentSession && currentSession.answers && currentSession.answers["partner" + partner]) || {};
+  // Scalamy istniejące odpowiedzi z nowymi – operacja shallow merge
+  const mergedAnswers = { ...existingAnswers, ...localAnswers };
+  sessionData.answers = sessionData.answers || {};
+  sessionData.answers["partner" + partner] = mergedAnswers;
+  await saveSession(token, sessionData);
+}
+
 async function showQuizResults(sessionData) {
   const latest = await loadSession(sessionData.token);
   if (!latest) {
@@ -309,7 +330,6 @@ async function showQuizResults(sessionData) {
   const answers2 = latest.answers.partner2;
   const p1 = latest.partner1Name;
   const p2 = latest.partner2Name;
-  // Jeśli obie strony nie mają kompletnej liczby odpowiedzi, polluj co 1 sekundę
   if (!answers1 || !answers2 ||
       Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
@@ -358,7 +378,6 @@ async function showQuizResults(sessionData) {
   const partner = getQueryParam('partner');
   console.log("main() – Token:", token, "Partner:", partner);
   if (!token) {
-    // Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
     const sessionData = await loadSession(token);
