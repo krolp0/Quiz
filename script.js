@@ -2,7 +2,7 @@
 const appDiv = document.getElementById('app');
 
 /*************** 2) Konfiguracja Supabase ***************/
-// Wklej swoje dane (URL i klucz anon) – bez żadnych dodatkowych ścieżek
+// Uzupełnij swoim URL i kluczem anon
 const SUPABASE_URL = "https://mdpyylbbhgvtbrpuejet.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcHl5bGJiaGd2dGJycHVlamV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk2MzIxMzIsImV4cCI6MjA1NTIwODEzMn0.31noUOdLve6sKZAA2iTgzKd8nO0Zrz9tel5nbEziMHo";
 const { createClient } = window.supabase;
@@ -13,62 +13,15 @@ function getQueryParam(param) {
   const params = new URLSearchParams(window.location.search);
   return params.get(param);
 }
-
 function generateToken() {
   return Math.random().toString(36).substr(2, 8);
 }
 
 /**
- * Zapisuje metadane quizu (session_data) do tabeli 'quizzes' – np. partner1Name, partner2Name, quizQuestions.
- * Nie dotyczy odpowiedzi partnerów – te zapiszemy osobno w partner1_answers / partner2_answers.
- */
-async function saveSessionData(token, sessionData) {
-  console.log("saveSessionData() – zapisuję session_data w Supabase...", token);
-  try {
-    // Tworzymy/upsertujemy wiersz z tokenem i session_data, resztę kolumn pozostawiamy nienaruszoną
-    const { data, error } = await supabase
-      .from('quizzes')
-      .upsert({ token, session_data: sessionData }, { onConflict: 'token' });
-    if (error) {
-      console.error("Błąd przy zapisie session_data do Supabase:", error);
-    } else {
-      console.log("session_data zapisane w Supabase:", data);
-    }
-  } catch (err) {
-    console.error("Błąd przy zapisie session_data:", err);
-  }
-}
-
-/**
- * Zapisuje odpowiedzi partnera w osobnej kolumnie partner1_answers lub partner2_answers.
- */
-async function savePartnerAnswers(token, partner, answersObj) {
-  const columnName = (partner === "1") ? "partner1_answers" : "partner2_answers";
-  console.log(`savePartnerAnswers() – zapisuję odpowiedzi partner${partner} w kolumnie ${columnName}`, token);
-
-  try {
-    // Tworzymy/upsertujemy wiersz z tokenem i kolumną partnerX_answers
-    const { data, error } = await supabase
-      .from('quizzes')
-      .upsert({ token, [columnName]: answersObj }, { onConflict: 'token' });
-    if (error) {
-      console.error("Błąd przy zapisie odpowiedzi do Supabase:", error);
-    } else {
-      console.log(`Odpowiedzi partner${partner} zapisane w Supabase:`, data);
-    }
-  } catch (err) {
-    console.error("Błąd przy zapisie odpowiedzi partnera:", err);
-  }
-}
-
-/**
- * Odczytuje pełne dane z tabeli 'quizzes':
- * - session_data (metadane quizu),
- * - partner1_answers,
- * - partner2_answers.
+ * Pobiera pełny wiersz (session_data, partner1_answers, partner2_answers)
+ * z tabeli quizzes dla danego tokenu.
  */
 async function loadQuizRow(token) {
-  console.log("loadQuizRow() – wczytuję wiersz z Supabase, token:", token);
   try {
     const { data, error } = await supabase
       .from('quizzes')
@@ -76,13 +29,44 @@ async function loadQuizRow(token) {
       .eq('token', token)
       .single();
     if (error) {
-      console.error("Błąd przy odczycie z Supabase:", error);
+      console.error("Błąd loadQuizRow:", error);
       return null;
     }
     return data; // { session_data, partner1_answers, partner2_answers }
   } catch (err) {
     console.error("Błąd loadQuizRow:", err);
     return null;
+  }
+}
+
+/**
+ * Upsertuje CAŁY wiersz (token, session_data, partner1_answers, partner2_answers).
+ * Zawsze przekazujemy session_data (niepuste), żeby nie naruszyć NOT NULL.
+ */
+async function upsertQuizRow(token, sessionData, partner1Answers, partner2Answers) {
+  // Upewnij się, że session_data nie jest null – wstaw pusty obiekt jeśli brak
+  const finalSessionData = sessionData || {};
+
+  // Jeśli kolumny partnerX_answers są nieustawione, wstaw pusty obiekt, żeby nie było undefined
+  const finalPartner1 = partner1Answers || {};
+  const finalPartner2 = partner2Answers || {};
+
+  try {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .upsert({
+        token,
+        session_data: finalSessionData,
+        partner1_answers: finalPartner1,
+        partner2_answers: finalPartner2
+      }, { onConflict: 'token' });
+    if (error) {
+      console.error("Błąd przy upsertQuizRow:", error);
+    } else {
+      console.log("upsertQuizRow – zapisany wiersz:", data);
+    }
+  } catch (err) {
+    console.error("Błąd upsertQuizRow:", err);
   }
 }
 
@@ -107,12 +91,75 @@ const fullQuizData = [
       { id: "codzienne10", type: "yesno",       text: "Czy {p2} jest bardziej skrupulatny w planowaniu dnia?" }
     ]
   },
-  // ... (Pozostałe kategorie: Romantyzm, Przygody, Plany na przyszłość, Intymność)
+  {
+    category: "Romantyzm",
+    questions: [
+      { id: "romantyzm1",  type: "comparative", text: "Kto jest bardziej romantyczny? {p1} vs {p2}" },
+      { id: "romantyzm2",  type: "comparative", text: "Kto częściej organizuje niespodzianki? {p1} vs {p2}" },
+      { id: "romantyzm3",  type: "comparative", text: "Kto lepiej planuje romantyczne kolacje? {p1} vs {p2}" },
+      { id: "romantyzm4",  type: "comparative", text: "Kto bardziej pamięta romantyczne chwile? {p1} vs {p2}" },
+      { id: "romantyzm5",  type: "comparative", text: "Kto lepiej wyraża swoje uczucia? {p1} vs {p2}" },
+      { id: "romantyzm6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej sentymentalny niż {p2}?" },
+      { id: "romantyzm7",  type: "yesno",       text: "Czy {p2} częściej inicjuje romantyczne gesty?" },
+      { id: "romantyzm8",  type: "yesno",       text: "Czy oboje dbacie o romantyczną atmosferę w związku?" },
+      { id: "romantyzm9",  type: "yesno",       text: "Czy {p1} częściej myśli o niespodziankach?" },
+      { id: "romantyzm10", type: "yesno",       text: "Czy {p2} lepiej utrzymuje romantyczny nastrój?" }
+    ]
+  },
+  {
+    category: "Przygody i spontaniczność",
+    questions: [
+      { id: "przygody1",   type: "comparative", text: "Kto jest bardziej spontaniczny? {p1} vs {p2}" },
+      { id: "przygody2",   type: "comparative", text: "Kto częściej inicjuje niespodziankę? {p1} vs {p2}" },
+      { id: "przygody3",   type: "comparative", text: "Kto bardziej kocha przygody? {p1} vs {p2}" },
+      { id: "przygody4",   type: "comparative", text: "Kto częściej podejmuje ryzykowne decyzje? {p1} vs {p2}" },
+      { id: "przygody5",   type: "comparative", text: "Kto lepiej adaptuje się do nowych sytuacji? {p1} vs {p2}" },
+      { id: "przygody6",   type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej otwarty na nowe doświadczenia?" },
+      { id: "przygody7",   type: "yesno",       text: "Czy {p2} częściej szuka przygód?" },
+      { id: "przygody8",   type: "yesno",       text: "Czy oboje podejmujecie spontaniczne decyzje?" },
+      { id: "przygody9",   type: "yesno",       text: "Czy {p1} jest bardziej skłonny do spontanicznych wypraw?" },
+      { id: "przygody10",  type: "yesno",       text: "Czy {p2} lepiej radzi sobie w nieprzewidywalnych sytuacjach?" }
+    ]
+  },
+  {
+    category: "Plany na przyszłość",
+    questions: [
+      { id: "przyszlosc1",  type: "comparative", text: "Kto jest bardziej zorientowany na przyszłość? {p1} vs {p2}" },
+      { id: "przyszlosc2",  type: "comparative", text: "Kto częściej planuje długoterminowe cele? {p1} vs {p2}" },
+      { id: "przyszlosc3",  type: "comparative", text: "Kto lepiej wizualizuje wspólną przyszłość? {p1} vs {p2}" },
+      { id: "przyszlosc4",  type: "comparative", text: "Kto częściej myśli o wspólnych planach? {p1} vs {p2}" },
+      { id: "przyszlosc5",  type: "comparative", text: "Kto bardziej angażuje się w planowanie przyszłości? {p1} vs {p2}" },
+      { id: "przyszlosc6",  type: "yesno",       text: "Czy uważasz, że {p1} lepiej planuje przyszłość niż {p2}?" },
+      { id: "przyszlosc7",  type: "yesno",       text: "Czy {p2} częściej myśli o długoterminowych celach?" },
+      { id: "przyszlosc8",  type: "yesno",       text: "Czy oboje macie podobne wizje przyszłości?" },
+      { id: "przyszlosc9",  type: "yesno",       text: "Czy {p1} jest bardziej zdecydowany w planach?" },
+      { id: "przyszlosc10", type: "yesno",       text: "Czy {p2} częściej przejmuje inicjatywę w planowaniu przyszłości?" }
+    ]
+  },
+  {
+    category: "Intymność",
+    questions: [
+      { id: "intymnosc1",  type: "comparative", text: "Kto jest bardziej czuły? {p1} vs {p2}" },
+      { id: "intymnosc2",  type: "comparative", text: "Kto częściej inicjuje intymne gesty? {p1} vs {p2}" },
+      { id: "intymnosc3",  type: "comparative", text: "Kto lepiej rozumie potrzeby partnera? {p1} vs {p2}" },
+      { id: "intymnosc4",  type: "comparative", text: "Kto częściej wyraża swoje uczucia? {p1} vs {p2}" },
+      { id: "intymnosc5",  type: "comparative", text: "Kto jest bardziej zmysłowy? {p1} vs {p2}" },
+      { id: "intymnosc6",  type: "yesno",       text: "Czy uważasz, że {p1} jest bardziej intymny niż {p2}?" },
+      { id: "intymnosc7",  type: "yesno",       text: "Czy {p2} częściej dba o intymność w związku?" },
+      { id: "intymnosc8",  type: "yesno",       text: "Czy oboje czujecie głęboką więź emocjonalną?" },
+      { id: "intymnosc9",  type: "yesno",       text: "Czy {p1} lepiej komunikuje swoje potrzeby intymne?" },
+      { id: "intymnosc10", type: "yesno",       text: "Czy {p2} częściej okazuje uczucia w sposób intymny?" }
+    ]
+  }
 ];
+
 
 /*************** 5) Logika quizu ***************/
 
-/** Partner 1 tworzy quiz – wpisuje imiona */
+/**
+ * Tworzy nowy quiz: wstawiamy wiersz z tokenem, session_data = { partner1Name, partner2Name, ... },
+ * partner1_answers i partner2_answers ustawiamy jako pusty obiekt {}.
+ */
 async function showCreateQuiz() {
   appDiv.innerHTML = `
     <h1>Quiz dla Zakochanych</h1>
@@ -134,22 +181,25 @@ async function showCreateQuiz() {
       return;
     }
     const token = generateToken();
-    // Tworzymy session_data z metadanymi
+    // session_data (metadane)
     const sessionData = {
       partner1Name: p1,
       partner2Name: p2,
       selectedCategories: [],
       quizQuestions: []
     };
-    // Zapisujemy w kolumnie session_data
-    await saveSessionData(token, sessionData);
+    // Tworzymy nowy wiersz z pustymi odpowiedziami
+    await upsertQuizRow(token, sessionData, {}, {});
     console.log("Utworzono quiz, token:", token);
     window.location.href = `?token=${token}&partner=1`;
   });
 }
 
-/** Partner 1 wybiera kategorie */
-async function showCategorySelection(sessionData, token) {
+/**
+ * Wybór kategorii przez Partnera 1 – aktualizujemy session_data w bazie,
+ * ale partner1_answers i partner2_answers pozostają nienaruszone.
+ */
+async function showCategorySelection(token, sessionData) {
   let categoryOptions = fullQuizData.map((cat, index) => {
     return `<div>
               <label>
@@ -168,20 +218,21 @@ async function showCategorySelection(sessionData, token) {
   document.getElementById('categoryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const selected = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
-    if (!selected || selected.length === 0) {
+    if (!selected.length) {
       alert("Wybierz przynajmniej jedną kategorię.");
       return;
     }
     const selectedCats = fullQuizData.filter(cat => selected.includes(cat.category));
-
-    // Zaktualizuj session_data w bazie
     sessionData.selectedCategories = selectedCats;
-    await saveSessionData(token, sessionData);
+    // Zapisz z powrotem w session_data
+    await upsertQuizRow(token, sessionData, sessionData.partner1_answers || {}, sessionData.partner2_answers || {});
     showQuizLink(token, sessionData);
   });
 }
 
-/** Ekran dla Partnera 1 – link do Partnera 2 i przycisk startu quizu */
+/**
+ * Strona linku dla Partnera 2 i przycisk startu dla Partnera 1
+ */
 function showQuizLink(token, sessionData) {
   const baseUrl = window.location.origin + window.location.pathname;
   const partner2Link = `${baseUrl}?token=${token}&partner=2`;
@@ -205,35 +256,41 @@ function showQuizLink(token, sessionData) {
   });
 }
 
-/** Rozpoczęcie quizu – tworzymy listę pytań z wybranych kategorii */
+/**
+ * Rozpoczęcie quizu – budujemy listę pytań z wybranych kategorii, zapisujemy w session_data.
+ */
 async function startQuiz(token, sessionData, partner) {
-  console.log(`startQuiz() – Partner ${partner}`);
   let quizQuestions = [];
-  const categories = (sessionData.selectedCategories && sessionData.selectedCategories.length > 0)
+  const cats = sessionData.selectedCategories && sessionData.selectedCategories.length > 0
     ? sessionData.selectedCategories
     : fullQuizData;
-  categories.forEach(cat => {
+  cats.forEach(cat => {
     cat.questions.forEach(q => {
       quizQuestions.push({ ...q, category: cat.category });
     });
   });
   sessionData.quizQuestions = quizQuestions;
-  // Zapisz w session_data
-  await saveSessionData(token, sessionData);
+  // Zapisz session_data
+  // Do upsertu pobierzmy aktualne partner1_answers i partner2_answers, by nie nadpisać
+  const existingRow = await loadQuizRow(token);
+  const existingSessionData = existingRow?.session_data || {};
+  const p1Answers = existingRow?.partner1_answers || {};
+  const p2Answers = existingRow?.partner2_answers || {};
 
-  // Lokalne odpowiedzi partnera
+  // Scal session_data (by zachować partner1Name, partner2Name)
+  const newSessionData = { ...existingSessionData, ...sessionData };
+  await upsertQuizRow(token, newSessionData, p1Answers, p2Answers);
+
+  // Odpowiedzi lokalne
   let localAnswers = {};
-  showQuestion(0, quizQuestions, token, sessionData, partner, localAnswers);
+  showQuestion(0, quizQuestions, token, newSessionData, partner, localAnswers);
 }
 
-/** Wyświetlanie pojedynczego pytania – automatyczne przejście do następnego */
+/** Wyświetlanie pojedynczego pytania */
 function showQuestion(index, quizQuestions, token, sessionData, partner, localAnswers) {
   if (index >= quizQuestions.length) {
-    console.log(`Partner ${partner} ukończył quiz. Zapisuję odpowiedzi w kolumnie partner${partner}_answers...`);
-    savePartnerAnswers(token, partner, localAnswers)
-      .then(() => {
-        showQuizResults(token);
-      });
+    console.log(`Partner ${partner} ukończył quiz. Zapisujemy odpowiedzi w partner${partner}_answers.`);
+    saveFinalAnswers(token, sessionData, partner, localAnswers);
     return;
   }
   const total = quizQuestions.length;
@@ -262,15 +319,13 @@ function showQuestion(index, quizQuestions, token, sessionData, partner, localAn
       ${optionsHTML}
     </div>
   `;
-
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('click', () => {
       const answer = tile.getAttribute('data-answer');
-      console.log(`Partner ${partner} kliknął ${current.id}, odpowiedź: ${answer}`);
       localAnswers[current.id] = {
         category: current.category,
         type: current.type,
-        answer: answer
+        answer
       };
       setTimeout(() => {
         showQuestion(index + 1, quizQuestions, token, sessionData, partner, localAnswers);
@@ -279,21 +334,51 @@ function showQuestion(index, quizQuestions, token, sessionData, partner, localAn
   });
 }
 
-/** Wyświetlanie wyników – czekamy, aż oboje partnerzy skończą (polling co 1s) */
+/**
+ * Po ukończeniu quizu przez danego partnera – zapisujemy odpowiedzi w partnerX_answers,
+ * ale jednocześnie zachowujemy session_data i drugą kolumnę z odpowiedziami drugiego partnera.
+ */
+async function saveFinalAnswers(token, sessionData, partner, localAnswers) {
+  // Pobierz bieżący stan, by wypełnić resztę kolumn
+  const row = await loadQuizRow(token);
+  if (!row) {
+    console.error("Nie znaleziono wiersza, nie można zapisać odpowiedzi partnera.");
+    return;
+  }
+  // Metadane
+  const finalSessionData = row.session_data || {};
+  // Odpowiedzi drugiego partnera
+  const p1Answers = row.partner1_answers || {};
+  const p2Answers = row.partner2_answers || {};
+
+  if (partner === "1") {
+    // Zaktualizuj partner1_answers
+    const merged1 = { ...p1Answers, ...localAnswers };
+    await upsertQuizRow(token, finalSessionData, merged1, p2Answers);
+  } else {
+    // Zaktualizuj partner2_answers
+    const merged2 = { ...p2Answers, ...localAnswers };
+    await upsertQuizRow(token, finalSessionData, p1Answers, merged2);
+  }
+  // Po zapisaniu – sprawdź wyniki
+  showQuizResults(token);
+}
+
+/** Wyświetlanie wyników – czekamy, aż oboje partnerzy zakończą */
 async function showQuizResults(token) {
-  const quizRow = await loadQuizRow(token);
-  if (!quizRow) {
+  const row = await loadQuizRow(token);
+  if (!row) {
     appDiv.innerHTML = "<p>Błąd: Nie można załadować quizu z bazy.</p>";
     return;
   }
-  const sessionData = quizRow.session_data || {};
-  const answers1 = quizRow.partner1_answers || {};
-  const answers2 = quizRow.partner2_answers || {};
+  const sessionData = row.session_data || {};
+  const answers1 = row.partner1_answers || {};
+  const answers2 = row.partner2_answers || {};
   const p1 = sessionData.partner1Name || "Partner1";
   const p2 = sessionData.partner2Name || "Partner2";
   const quizQuestions = sessionData.quizQuestions || [];
 
-  // Sprawdź, czy oboje mają komplet odpowiedzi
+  // Sprawdź, czy oboje mają komplet
   if (Object.keys(answers1).length !== quizQuestions.length ||
       Object.keys(answers2).length !== quizQuestions.length) {
     console.log("Oczekiwanie na zakończenie quizu przez oboje partnerów...");
@@ -301,15 +386,13 @@ async function showQuizResults(token) {
     setTimeout(() => showQuizResults(token), 1000);
     return;
   }
-
-  // Oblicz statystyki
+  // Oblicz zgodność
   let total = quizQuestions.length;
   let agreements = 0;
   let detailsHTML = quizQuestions.map(q => {
     const questionText = formatText(q.text, p1, p2);
     const a1 = answers1[q.id]?.answer;
     const a2 = answers2[q.id]?.answer;
-    // Zamiana "1" -> p1, "2" -> p2
     const answer1 = (a1 === "1") ? p1 : (a1 === "2") ? p2 : a1;
     const answer2 = (a2 === "1") ? p1 : (a2 === "2") ? p2 : a2;
     if (a1 === a2) agreements++;
@@ -343,29 +426,28 @@ async function showQuizResults(token) {
   console.log("main() – Token:", token, "Partner:", partner);
 
   if (!token) {
-    // Brak tokenu – Partner 1 tworzy nowy quiz
+    // Partner 1 tworzy quiz
     showCreateQuiz();
   } else {
-    // Pobierz row z bazy
-    const quizRow = await loadQuizRow(token);
-    if (!quizRow) {
+    const row = await loadQuizRow(token);
+    if (!row) {
       appDiv.innerHTML = "<p>Błąd: Nie znaleziono quizu w bazie. Sprawdź link.</p>";
       return;
     }
-    const sessionData = quizRow.session_data || {};
+    const sessionData = row.session_data || {};
+
     if (partner === "1") {
+      // Partner 1 – jeśli nie wybrał kategorii, pokaż wybór
       if (!sessionData.selectedCategories || sessionData.selectedCategories.length === 0) {
-        // Pokaż wybór kategorii
-        showCategorySelection(sessionData, token);
+        showCategorySelection(token, sessionData);
       } else {
-        // Pokaż link i przycisk start
         showQuizLink(token, sessionData);
       }
     } else if (partner === "2") {
       console.log("Partner 2 wykryty – uruchamiam quiz.");
-      // Jeśli quizQuestions jeszcze nie istnieje (Partner1 nie wybrał kategorii), poinformuj
+      // Sprawdź, czy quizQuestions istnieje
       if (!sessionData.quizQuestions || sessionData.quizQuestions.length === 0) {
-        appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu. Spróbuj ponownie później.</p>`;
+        appDiv.innerHTML = `<p>Partner 1 nie skonfigurował jeszcze quizu.</p>`;
         return;
       }
       startQuiz(token, sessionData, "2");
